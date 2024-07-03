@@ -2,8 +2,8 @@ import os
 import shutil
 import sys
 
-from PySide6.QtGui import QIcon, QAction, QStandardItem
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QTreeView, QHeaderView
+from PySide6.QtGui import QIcon, QAction, QStandardItem, QCursor
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QTreeView, QHeaderView, QDialog, QMenu
 from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, QLocale, QTranslator, QSize, QPersistentModelIndex
 from matplotlib import pyplot as plt
 
@@ -11,15 +11,24 @@ from ui.ui_FileManager import Ui_FileManager
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+from ui.ui_SettingsDialog import Ui_SettingsDialog
+
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+class SettingsDialog(QDialog, Ui_SettingsDialog):
+    def __init__(self, parent=None):
+        super(SettingsDialog, self).__init__(parent)
+        self.setupUi(self)
 
 
 class FileManager(QMainWindow, Ui_FileManager):
     def __init__(self, parent=None):
         super(FileManager, self).__init__(parent)
+        self.nav_index = 0
         self.setupUi(self)
         self.connect_actions()
-
+        self.history_nav = []
         # Set the application locale to French
         self.translator = QTranslator()
         if self.translator.load("qt_fr.qm"):
@@ -42,7 +51,6 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.canvas = FigureCanvas(plt.Figure())
         self.verticalLayout_4.addWidget(self.canvas)
         self.locale = QLocale(QLocale.Language.French)
-
         self.treeView.setStyleSheet("""
                     QTreeView::item:hover {
                                background-color: dodgerblue;
@@ -53,7 +61,6 @@ class FileManager(QMainWindow, Ui_FileManager):
                        color: white;
                    }
                """)
-
         self.listView.setStyleSheet("""
                            QListView::item:hover {
                                background-color: dodgerblue;
@@ -74,8 +81,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         config = QAction(QIcon(f"{PATH_ROOT}/toolbar/settings.png"), "", self)
         parent_dir = QAction(QIcon(f"{PATH_ROOT}/toolbar/up.png"), "", self)
         parent_dir.triggered.connect(self.go_to_parent_directory)
-
-
+        config.triggered.connect(self.open_settings)
         self.toolBar.addAction(new_folder)
         self.toolBar.addAction(cut)
         self.toolBar.addAction(copy)
@@ -91,6 +97,33 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.actionRenommer.triggered.connect(self.rename_file)
         self.treeView.clicked.connect(self.on_treeView_clicked)
         self.listView.doubleClicked.connect(self.update_lists)
+        self.btn_prev.clicked.connect(lambda: self.navigate("prev"))
+        self.btn_next.clicked.connect(lambda: self.navigate("next"))
+        self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeView.customContextMenuRequested.connect(self.open_context_menu)
+        self.nav_index = 0
+
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        dialog.setWindowTitle("Paramètres")
+        if dialog.exec() == QDialog.Accepted:
+            print("Paramètres acceptés")
+        else:
+            print("Paramètres rejetés")
+
+    def navigate(self, direction):
+        if direction == "prev":
+            self.nav_index -= 1
+            if self.nav_index < 0:
+                self.nav_index = len(self.history_nav) - 1
+        else:
+            self.nav_index += 1
+            if self.nav_index >= len(self.history_nav):
+                self.nav_index = len(self.history_nav) - 1
+
+        path = self.history_nav[self.nav_index]
+        self.listView.setRootIndex(self.fileSystemModel.index(path))
+        self.textBrowser.setText(path)
 
     def new_file(self):
         # Implémenter la fonctionnalité pour créer un nouveau fichier
@@ -116,6 +149,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         # Implémenter la fonctionnalité pour renommer un fichier
         print("Fichier renommé")
 
+    def delete_file(self):
+        # Implémenter la fonctionnalité pour renommer un fichier
+        print("Fichier supprimé")
+
+    def execute_command(self):
+        print("Commande")
+
     def on_treeView_clicked(self, index):
         self.infos(index)
 
@@ -128,6 +168,9 @@ class FileManager(QMainWindow, Ui_FileManager):
         file_path = self.fileSystemModel.filePath(index)
         file_info = self.fileSystemModel.fileInfo(index)
 
+        self.textBrowser.setText(file_path)
+        self.history_nav.insert(self.nav_index, file_path)
+
         self.lbl_preview.setVisible(True if file_info.exists() else False)
 
         file_name = file_info.fileName()
@@ -138,6 +181,7 @@ class FileManager(QMainWindow, Ui_FileManager):
             self.lbl_nom.setText(f"Nom: {file_name}")
 
         self.lbl_chemin.setText(f"Chemin: {file_path}")
+
         last_modified_date = self.locale.toString(file_info.lastModified(), QLocale.FormatType.LongFormat)
         self.lbl_date.setText(f"Date de modification: {last_modified_date}")
 
@@ -202,22 +246,45 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.canvas.draw()
 
     def update_lists(self, index):
-
+        self.nav_index = len(self.history_nav) - 1
         self.infos(index)
 
-
-
-
     def go_to_parent_directory(self):
-        #current_index = self.treeView.currentIndex()
+        # current_index = self.treeView.currentIndex()
         current_index = self.listView.currentIndex()
         if not current_index.isValid():
             return
 
         parent_index = self.fileSystemModel.parent(current_index)
         if parent_index.isValid():
-            self.treeView.setRootIndex(parent_index)
+            # self.treeView.setRootIndex(parent_index)
             self.update_lists(parent_index)
+
+    def open_context_menu(self, position):
+        indexes = self.treeView.selectedIndexes()
+        if not indexes:
+            return
+
+        menu = QMenu()
+        cut_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/cut.png"), "Couper", self)
+        copy_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "Copier", self)
+        rename_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/rename.png"), "Renommer", self)
+        delete_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/remove-folder.png"), "Supprimer", self)
+        command_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/running.png"), "Exécuter commande", self)
+
+        cut_action.triggered.connect(self.cut_file)
+        copy_action.triggered.connect(self.copy_file)
+        rename_action.triggered.connect(self.rename_file)
+        delete_action.triggered.connect(self.delete_file)
+        command_action.triggered.connect(self.execute_command)
+
+        menu.addAction(cut_action)
+        menu.addAction(copy_action)
+        menu.addAction(rename_action)
+        menu.addAction(delete_action)
+        menu.addAction(command_action)
+
+        menu.exec(QCursor.pos())
 
 
 if __name__ == "__main__":
