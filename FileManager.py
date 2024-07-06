@@ -1,12 +1,18 @@
 import os
 import shutil
+import stat
+import subprocess
 import sys
+import datetime
+import time
 
-from PySide6.QtGui import QIcon, QAction, QStandardItem, QCursor
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QTreeView, QHeaderView, QDialog, QMenu
-from PySide6.QtCore import QCoreApplication, QMetaObject, Qt, QLocale, QTranslator, QSize, QPersistentModelIndex
+from PySide6.QtGui import QIcon, QAction, QCursor
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog
+from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
 from matplotlib import pyplot as plt
 
+from QCommand import WorkerSignals, CommandRunnable, ShellType
+from Utils import DirectorySizeWorker
 from ui.ui_FileManager import Ui_FileManager
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -14,6 +20,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from ui.ui_SettingsDialog import Ui_SettingsDialog
 
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
+import pathlib
 
 
 class SettingsDialog(QDialog, Ui_SettingsDialog):
@@ -72,6 +79,7 @@ class FileManager(QMainWindow, Ui_FileManager):
                            }
                            
                        """)
+        self.thread_pool = QThreadPool()
 
     def init_toolbar(self):
         self.toolBar.setIconSize(QSize(15, 15))
@@ -146,15 +154,54 @@ class FileManager(QMainWindow, Ui_FileManager):
         print("Fichier sauvegardé")
 
     def rename_file(self):
-        # Implémenter la fonctionnalité pour renommer un fichier
-        print("Fichier renommé")
+        index = self.treeView.currentIndex()
+        if not index.isValid():
+            return
+        old_name = self.fileSystemModel.fileName(index)
+        new_name, ok = QInputDialog.getText(self, "Renommer", "Nouveau nom:", text=old_name)
+        if ok and new_name:
+            old_path = self.fileSystemModel.filePath(index)
+            new_path = os.path.join(os.path.dirname(old_path), new_name)
+            os.rename(old_path, new_path)
 
     def delete_file(self):
-        # Implémenter la fonctionnalité pour renommer un fichier
-        print("Fichier supprimé")
+        index = self.treeView.currentIndex()
+        if not index.isValid():
+            return
+        file_path = self.fileSystemModel.filePath(index)
+        reply = QMessageBox.question(self, "Supprimer", f"Voulez-vous vraiment supprimer {file_path} ?",
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            try:
+                if os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                    print(f"Dossier supprimé : {file_path}")
+                else:
+                    os.chmod(file_path, 0o777)  # Assurez-vous que le fichier n'est pas en lecture seule
+                    os.unlink(file_path)
+                    # Utilisez subprocess pour supprimer un fichier avec des privilèges élevés sous Windows
+                    # command = f'del /F /Q "{file_path}"'
+                    # result = subprocess.run(['cmd', '/c', command], capture_output=True, text=True, shell=True)
+                    # if result.returncode != 0:
+                    #     raise PermissionError(result.stderr)
+                    print(f"Fichier supprimé : {file_path}")
+            except PermissionError as perm:
+                print(f"Permission refusée : {file_path}")
+            except OSError as e:
+                print(f"Erreur lors de la suppression de {file_path} : {e}")
 
     def execute_command(self):
-        print("Commande")
+        index = self.treeView.currentIndex()
+        if not index.isValid():
+            return
+        file_path = self.fileSystemModel.filePath(index)
+        if os.path.isdir(file_path):
+            subprocess.Popen([r'C:\Windows\System32\cmd.exe'], cwd=file_path,
+                             creationflags=subprocess.CREATE_NEW_CONSOLE)
+        else:
+            dir_path = os.path.dirname(file_path)
+            subprocess.Popen([r'C:\Windows\System32\cmd.exe'], cwd=dir_path,
+                             creationflags=subprocess.CREATE_NEW_CONSOLE)
 
     def on_treeView_clicked(self, index):
         self.infos(index)
@@ -197,16 +244,8 @@ class FileManager(QMainWindow, Ui_FileManager):
                 free_space = self.get_size(free_space)
                 self.lbl_taille.setText(f"Taille totale / dispo : {total_size} / {free_space} ({percentage:.2f}%)")
             else:
-                directory_size = self.get_directory_size(file_path)
-                if directory_size > 0:
-                    root_size, _ = self.get_disk_usage(os.path.abspath(os.sep))
-                    percentage = (directory_size / root_size) * 100 if root_size > 0 else 0
-                    self.draw_pie_chart(root_size, directory_size)
-                    directory_size = self.get_size(directory_size)
-                    self.lbl_taille.setText(f"Taille du répertoire : {directory_size} ({percentage:.2f}%)")
-                else:
-                    self.lbl_taille.setText(f"Taille du répertoire : vide ")
-
+                self.lbl_taille.setText(f"Taille du dossier : calcul en cours ...")
+                self.calculate_directory_size(file_path)
         else:
             file_size = file_info.size()
             total_size, free_space = self.get_disk_usage(os.path.abspath(os.sep))
@@ -214,13 +253,23 @@ class FileManager(QMainWindow, Ui_FileManager):
             file_size = self.get_size(file_size)
             self.lbl_taille.setText(f"Taille du fichier : {file_size} ({percentage:.2f}%)")
 
-    def get_directory_size(self, directory):
-        total_size = 0
-        for dirpath, dirnames, filenames in os.walk(directory):
-            for filename in filenames:
-                file_path = os.path.join(dirpath, filename)
-                total_size += os.path.getsize(file_path)
-        return total_size
+    def calculate_directory_size(self, path):
+        self.worker = DirectorySizeWorker(path)
+        self.worker.signals.result.connect(self.display_directory_size)
+        self.worker.signals.finished.connect(self.worker_finished)
+        self.thread_pool.start(self.worker)
+
+    def display_directory_size(self, size):
+        directory_size = size
+        root_size, _ = self.get_disk_usage(os.path.abspath(os.sep))
+        percentage = (directory_size / root_size) * 100 if root_size > 0 else 0
+        self.draw_pie_chart(root_size, directory_size)
+        directory_size = self.get_size(directory_size)
+        self.lbl_taille.setText(f"Taille du répertoire : {directory_size} ({percentage:.2f}%)")
+
+    def worker_finished(self):
+        print("Worker finished")
+
 
     def get_disk_usage(self, path):
         usage = shutil.disk_usage(path)
@@ -231,6 +280,68 @@ class FileManager(QMainWindow, Ui_FileManager):
             if size < 1024.0:
                 return f"{size:.{decimal_places}f} {unit}"
             size /= 1024.0
+
+    def get_file_attributes(file_path):
+        """
+        Récupère les attributs complets d'un fichier ou d'un dossier.
+
+        :param file_path: Chemin du fichier ou du dossier.
+        :return: Dictionnaire contenant les attributs du fichier ou du dossier.
+        """
+        file_path = pathlib.Path(file_path)
+
+        if not file_path.exists():
+            print(f"Le chemin {file_path} n'existe pas.")
+            return None
+
+        attributes = {}
+
+        # Informations de base
+        attributes['Path'] = str(file_path)
+        attributes['Size'] = file_path.stat().st_size
+        attributes['Last Modified'] = time.ctime(file_path.stat().st_mtime)
+        attributes['Last Accessed'] = time.ctime(file_path.stat().st_atime)
+        attributes['Date Creation'] = time.ctime(file_path.stat().st_ctime)
+
+        # Permissions
+        mode = file_path.stat().st_mode
+        attributes['Mode'] = mode
+        attributes['Read'] = os.access(file_path, os.R_OK)
+        attributes['Write'] = os.access(file_path, os.W_OK)
+        attributes['Executable'] = os.access(file_path, os.X_OK)
+
+        # Type de fichier
+        if stat.S_ISDIR(mode):
+            attributes['Type'] = 'Dossier'
+        elif stat.S_ISREG(mode):
+            attributes['Type'] = 'Fichier'
+        elif stat.S_ISLNK(mode):
+            attributes['Type'] = 'Raccourci'
+        elif stat.S_ISCHR(mode):
+            attributes['Type'] = 'Character Device'
+        elif stat.S_ISBLK(mode):
+            attributes['Type'] = 'Block Device'
+        elif stat.S_ISFIFO(mode):
+            attributes['Type'] = 'FIFO'
+        elif stat.S_ISSOCK(mode):
+            attributes['Type'] = 'Socket'
+        else:
+            attributes['Type'] = 'Inconnu'
+
+        # Attributs supplémentaires sous Windows
+        if os.name == 'nt':
+            try:
+                import win32api
+                import win32con
+                file_attrs = win32api.GetFileAttributes(str(file_path))
+                attributes['Hidden'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_HIDDEN)
+                attributes['System'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_SYSTEM)
+                attributes['Archive'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_ARCHIVE)
+                attributes['Temporary'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_TEMPORARY)
+            except ImportError:
+                print("Module pywin32 non installé, impossible de récupérer les attributs Windows spécifiques.")
+
+        return attributes
 
     def draw_pie_chart(self, total_size, free_space):
         used_space = total_size - free_space
@@ -285,6 +396,9 @@ class FileManager(QMainWindow, Ui_FileManager):
         menu.addAction(command_action)
 
         menu.exec(QCursor.pos())
+
+    def command_log(self):
+        pass
 
 
 if __name__ == "__main__":
