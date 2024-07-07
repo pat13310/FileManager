@@ -130,7 +130,7 @@ class Ui_FileManager(object):
         self.listView = QListView(self.panel_listview)
         self.listView.setObjectName(u"listView")
         self.listView.setAcceptDrops(True)
-        self.listView.setFrameShape(QFrame.Shape.VLine)
+        #self.listView.setFrameShape(QFrame.Shape.VLine)
 
         self.verticalLayout.addWidget(self.listView)
 

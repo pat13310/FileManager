@@ -6,27 +6,23 @@ import sys
 import datetime
 import time
 
-from PySide6.QtGui import QIcon, QAction, QCursor
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog
+from PySide6.QtGui import QIcon, QAction, QCursor, QScreen, QGuiApplication
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
+    QWidget
 from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
 from matplotlib import pyplot as plt
 
+from CleanDialog import CleanDialog
+from Cleaner import Cleaner
 from QCommand import WorkerSignals, CommandRunnable, ShellType
+from SettingsDialog import SettingsDialog
 from Utils import DirectorySizeWorker
 from ui.ui_FileManager import Ui_FileManager
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from ui.ui_SettingsDialog import Ui_SettingsDialog
-
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
 import pathlib
-
-
-class SettingsDialog(QDialog, Ui_SettingsDialog):
-    def __init__(self, parent=None):
-        super(SettingsDialog, self).__init__(parent)
-        self.setupUi(self)
 
 
 class FileManager(QMainWindow, Ui_FileManager):
@@ -80,6 +76,8 @@ class FileManager(QMainWindow, Ui_FileManager):
                            
                        """)
         self.thread_pool = QThreadPool()
+        self.cleanDlg = CleanDialog("scanner.json")
+        self.center_on_screen()
 
     def init_toolbar(self):
         self.toolBar.setIconSize(QSize(15, 15))
@@ -88,13 +86,23 @@ class FileManager(QMainWindow, Ui_FileManager):
         copy = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "", self)
         config = QAction(QIcon(f"{PATH_ROOT}/toolbar/settings.png"), "", self)
         parent_dir = QAction(QIcon(f"{PATH_ROOT}/toolbar/up.png"), "", self)
+        clean = QAction(QIcon(f"{PATH_ROOT}/toolbar/clean.png"), "", self)
         parent_dir.triggered.connect(self.go_to_parent_directory)
+        clean.triggered.connect(self.clean_dir)
         config.triggered.connect(self.open_settings)
+        clean.triggered.connect(self.open_clean)
         self.toolBar.addAction(new_folder)
         self.toolBar.addAction(cut)
         self.toolBar.addAction(copy)
+        spacer = QWidget()
+        self.toolBar.addSeparator()
+        spacer.setFixedSize(8, 15)
+        self.toolBar.addWidget(spacer)
+        self.toolBar.addAction(clean)
+        spacer2 = QWidget()
+        spacer2.setFixedSize(8, 15)
+        self.toolBar.addWidget(spacer2)
         self.toolBar.addAction(config)
-        self.toolBar.addAction(parent_dir)
 
     def connect_actions(self):
         self.actionNouveau.triggered.connect(self.new_file)
@@ -119,6 +127,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         else:
             print("Paramètres rejetés")
 
+    def open_clean(self):
+        self.cleanDlg.setWindowTitle("Nettoyage")
+        if self.cleanDlg.exec() == QDialog.Accepted:
+            print("Paramètres acceptés")
+        else:
+            print("Paramètres rejetés")
+
     def navigate(self, direction):
         if direction == "prev":
             self.nav_index -= 1
@@ -133,9 +148,40 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.listView.setRootIndex(self.fileSystemModel.index(path))
         self.textBrowser.setText(path)
 
+    def clean_dir(self):
+        pass
+
     def new_file(self):
-        # Implémenter la fonctionnalité pour créer un nouveau fichier
-        print("Nouveau fichier créé")
+        index = self.treeView.currentIndex()
+        if not index.isValid():
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un emplacement valide.")
+            return
+
+        current_path = self.fileSystemModel.filePath(index)
+
+        # Vérifier si le chemin actuel est un dossier
+        if not os.path.isdir(current_path):
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un dossier pour créer un nouvel élément.")
+            return
+
+        # Boîte de dialogue pour choisir le type d'élément à créer
+        item_type, ok = QInputDialog.getItem(self, "Créer un nouvel élément", "Type d'élément:", ["Dossier", "Fichier"],
+                                             0, False)
+        if ok and item_type:
+            item_name, ok = QInputDialog.getText(self, f"Nouveau {item_type.lower()}",
+                                                 f"Nom du nouveau {item_type.lower()}:")
+            if ok and item_name:
+                item_path = os.path.join(current_path, item_name)
+                try:
+                    if item_type == "Dossier":
+                        os.makedirs(item_path)
+                        print(f"Nouveau dossier créé : {item_path}")
+                    elif item_type == "Fichier":
+                        with open(item_path, 'w') as f:
+                            f.write('')
+                        print(f"Nouveau fichier créé : {item_path}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Erreur", f"Impossible de créer le {item_type.lower()} : {e}")
 
     def copy_file(self):
         # Implémenter la fonctionnalité pour copier un fichier
@@ -229,7 +275,8 @@ class FileManager(QMainWindow, Ui_FileManager):
 
         self.lbl_chemin.setText(f"Chemin: {file_path}")
 
-        last_modified_date = self.locale.toString(file_info.lastModified(), QLocale.FormatType.LongFormat)
+        locale = QLocale(QLocale.French, QLocale.France)
+        last_modified_date = locale.toString(file_info.lastModified(), "dddd dd MMMM yyyy à hh:mm:ss")
         self.lbl_date.setText(f"Date de modification: {last_modified_date}")
 
         self.lbl_type.setText(f"Type: {file_info.suffix() if file_info.isFile() else 'Dossier'}")
@@ -265,11 +312,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         percentage = (directory_size / root_size) * 100 if root_size > 0 else 0
         self.draw_pie_chart(root_size, directory_size)
         directory_size = self.get_size(directory_size)
-        self.lbl_taille.setText(f"Taille du répertoire : {directory_size} ({percentage:.2f}%)")
+        if size > 0:
+            self.lbl_taille.setText(f"Taille du dossier : {directory_size} ({percentage:.2f}%)")
+        else:
+            self.lbl_taille.setText(f"Taille du dossier : vide")
 
     def worker_finished(self):
         print("Worker finished")
-
 
     def get_disk_usage(self, path):
         usage = shutil.disk_usage(path)
@@ -377,18 +426,19 @@ class FileManager(QMainWindow, Ui_FileManager):
             return
 
         menu = QMenu()
+        new_folder = QAction(QIcon(f"{PATH_ROOT}/toolbar/add-folder.png"), "Nouvel élément", self)
         cut_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/cut.png"), "Couper", self)
         copy_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "Copier", self)
         rename_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/rename.png"), "Renommer", self)
         delete_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/remove-folder.png"), "Supprimer", self)
         command_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/running.png"), "Exécuter commande", self)
-
+        new_folder.triggered.connect(self.new_file)
         cut_action.triggered.connect(self.cut_file)
         copy_action.triggered.connect(self.copy_file)
         rename_action.triggered.connect(self.rename_file)
         delete_action.triggered.connect(self.delete_file)
         command_action.triggered.connect(self.execute_command)
-
+        menu.addAction(new_folder)
         menu.addAction(cut_action)
         menu.addAction(copy_action)
         menu.addAction(rename_action)
@@ -399,6 +449,13 @@ class FileManager(QMainWindow, Ui_FileManager):
 
     def command_log(self):
         pass
+
+    def center_on_screen(self):
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        self_geometry = self.frameGeometry()
+        self_geometry.moveCenter(screen_geometry.center())
+        self.move(self_geometry.topLeft())
 
 
 if __name__ == "__main__":

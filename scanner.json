@@ -1,0 +1,134 @@
+{
+    "Configurations": {
+        "system_paths": {
+            "description": "Chemins Système",
+            "options": {
+                "temp": {
+                    "label": "Fichiers Temporaires",
+                    "enabled": true,
+                    "path": "C:/Temp"
+                },
+                "windows_temp": {
+                    "label": "Fichiers Temp de Windows",
+                    "enabled": true,
+                    "path": "C:/Windows/Temp"
+                },
+                "local_temp": {
+                    "label": "Fichiers Temp Locaux",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Temp"
+                },
+                "windows_prefetch": {
+                    "label": "Fichiers Prefetch de Windows",
+                    "enabled": false,
+                    "path": "C:/Windows/Prefetch"
+                },
+                "windows_update": {
+                    "label": "Fichiers de Mise à Jour Windows",
+                    "enabled": false,
+                    "path": "C:/Windows/SoftwareDistribution/Download"
+                },
+                "log_files": {
+                    "label": "Fichiers Log de Système",
+                    "enabled": true,
+                    "path": "C:/Windows/Logs"
+                },
+                "thumbnail_cache": {
+                    "label": "Cache de Miniatures",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Microsoft/Windows/Explorer"
+                }
+            }
+        },
+        "browser_paths": {
+            "description": "Chemins des Navigateurs",
+            "options": {
+                "chrome": {
+                    "label": "Cache de Chrome",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Google/Chrome/User Data/Default/Cache"
+                },
+                "firefox": {
+                    "label": "Profils Firefox",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Roaming/Mozilla/Firefox/Profiles"
+                },
+                "edge": {
+                    "label": "Cache de Edge",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Microsoft/Edge/User Data/Default/Cache"
+                },
+                "opera": {
+                    "label": "Cache de Opera",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Roaming/Opera Software/Opera Stable/Cache"
+                },
+                "safari": {
+                    "label": "Cache de Safari",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Apple Computer/Safari/Cache.db"
+                }
+            }
+        },
+        "application_paths": {
+            "description": "Chemins des Applications",
+            "options": {
+                "adobe": {
+                    "label": "Cache d'Adobe",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Roaming/Adobe"
+                },
+                "office": {
+                    "label": "Cache d'Office",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Microsoft/Office"
+                },
+                "autodesk": {
+                    "label": "Cache Local d'Autodesk",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Local/Autodesk"
+                },
+                "skype": {
+                    "label": "Données Skype",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/AppData/Roaming/Skype"
+                },
+                "steam": {
+                    "label": "Fichiers de Jeux Steam",
+                    "enabled": false,
+                    "path": "C:/Program Files (x86)/Steam/steamapps/common"
+                }
+            }
+        },
+        "user_folders": {
+            "description": "Dossiers Utilisateurs",
+            "options": {
+                "documents": {
+                    "label": "Dossier Documents",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/Documents"
+                },
+                "downloads": {
+                    "label": "Dossier Téléchargements",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/Downloads"
+                },
+                "pictures": {
+                    "label": "Dossier Images",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/Pictures"
+                },
+                "music": {
+                    "label": "Dossier Musique",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/Music"
+                },
+                "videos": {
+                    "label": "Dossier Vidéos",
+                    "enabled": false,
+                    "path": "C:/Users/<Username>/Videos"
+                }
+            }
+        }
+    }
+}
