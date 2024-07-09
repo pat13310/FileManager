@@ -1,33 +1,29 @@
+import mimetypes
 import os
 import shutil
-import stat
 import subprocess
 import sys
-import datetime
-import time
 
-from PySide6.QtGui import QIcon, QAction, QCursor, QScreen, QGuiApplication
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
-    QWidget
 from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
+from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication, QPixmap
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
+    QWidget, QTreeView, QListView
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from CleanDialog import CleanDialog
-from Cleaner import Cleaner
-from QCommand import WorkerSignals, CommandRunnable, ShellType
 from SettingsDialog import SettingsDialog
 from Utils import DirectorySizeWorker
 from ui.ui_FileManager import Ui_FileManager
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
-import pathlib
 
 
 class FileManager(QMainWindow, Ui_FileManager):
     def __init__(self, parent=None):
         super(FileManager, self).__init__(parent)
+        self.worker = None
+        self.mime_type = None
         self.nav_index = 0
         self.setupUi(self)
         self.connect_actions()
@@ -78,20 +74,30 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.thread_pool = QThreadPool()
         self.cleanDlg = CleanDialog("scanner.json")
         self.center_on_screen()
+        self.index_selected = None
+
+        # self.lbl_preview.setWordWrap(True)
+        self.scrollArea.setFixedHeight(400)
+        # self.scrollAreaContents.setFixedHeight(self.scrollArea.height())
+        # self.scrollAreaContents.setMaximumWidth(self.panel_preview.width())
+        # self.lbl_preview.setMinimumWidth(self.panel_preview.width())
+        # self.lbl_preview.setMaximumWidth(self.panel_preview.width())
+        # self.scrollArea.setWidgetResizable(True)
 
     def init_toolbar(self):
         self.toolBar.setIconSize(QSize(15, 15))
-        new_folder = QAction(QIcon(f"{PATH_ROOT}/toolbar/add-folder.png"), "", self)
+        home = QAction(QIcon(f"{PATH_ROOT}/toolbar/home.png"), "", self)
         cut = QAction(QIcon(f"{PATH_ROOT}/toolbar/cut.png"), "", self)
         copy = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "", self)
         config = QAction(QIcon(f"{PATH_ROOT}/toolbar/settings.png"), "", self)
         parent_dir = QAction(QIcon(f"{PATH_ROOT}/toolbar/up.png"), "", self)
         clean = QAction(QIcon(f"{PATH_ROOT}/toolbar/clean.png"), "", self)
-        parent_dir.triggered.connect(self.go_to_parent_directory)
+        # parent_dir.triggered.connect(self.go_to_parent_directory)
         clean.triggered.connect(self.clean_dir)
         config.triggered.connect(self.open_settings)
         clean.triggered.connect(self.open_clean)
-        self.toolBar.addAction(new_folder)
+        home.triggered.connect(self.home_dir)
+        self.toolBar.addAction(home)
         self.toolBar.addAction(cut)
         self.toolBar.addAction(copy)
         spacer = QWidget()
@@ -111,13 +117,22 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.actionColler.triggered.connect(self.paste_file)
         self.actionSauvegarder.triggered.connect(self.save_file)
         self.actionRenommer.triggered.connect(self.rename_file)
+        """  ListView et Treeview """
         self.treeView.clicked.connect(self.on_treeView_clicked)
+        self.listView.clicked.connect(self.on_listView_clicked)
         self.listView.doubleClicked.connect(self.update_lists)
         self.btn_prev.clicked.connect(lambda: self.navigate("prev"))
         self.btn_next.clicked.connect(lambda: self.navigate("next"))
         self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.listView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.open_context_menu)
+        self.listView.customContextMenuRequested.connect(self.open_context_menu)
         self.nav_index = 0
+
+    def home_dir(self):
+        self.listView.setRootIndex(self.fileSystemModel.index(""))
+        index = self.listView.currentIndex()
+        self.infos(index)
 
     def open_settings(self):
         dialog = SettingsDialog(self)
@@ -152,12 +167,11 @@ class FileManager(QMainWindow, Ui_FileManager):
         pass
 
     def new_file(self):
-        index = self.treeView.currentIndex()
-        if not index.isValid():
+        if not self.index_selected.isValid():
             QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un emplacement valide.")
             return
 
-        current_path = self.fileSystemModel.filePath(index)
+        current_path = self.fileSystemModel.filePath(self.index_selected)
 
         # Vérifier si le chemin actuel est un dossier
         if not os.path.isdir(current_path):
@@ -184,7 +198,10 @@ class FileManager(QMainWindow, Ui_FileManager):
                     QMessageBox.critical(self, "Erreur", f"Impossible de créer le {item_type.lower()} : {e}")
 
     def copy_file(self):
-        # Implémenter la fonctionnalité pour copier un fichier
+        if not self.index_selected.isValid():
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un emplacement valide.")
+            return
+
         print("Fichier copié")
 
     def cut_file(self):
@@ -200,21 +217,21 @@ class FileManager(QMainWindow, Ui_FileManager):
         print("Fichier sauvegardé")
 
     def rename_file(self):
-        index = self.treeView.currentIndex()
-        if not index.isValid():
+        if not self.index_selected.isValid():
             return
-        old_name = self.fileSystemModel.fileName(index)
+        old_name = self.fileSystemModel.fileName(self.index_selected)
         new_name, ok = QInputDialog.getText(self, "Renommer", "Nouveau nom:", text=old_name)
         if ok and new_name:
-            old_path = self.fileSystemModel.filePath(index)
+            old_path = self.fileSystemModel.filePath(self.index_selected)
             new_path = os.path.join(os.path.dirname(old_path), new_name)
             os.rename(old_path, new_path)
+            self.lbl_chemin.setText(new_path)
 
     def delete_file(self):
-        index = self.treeView.currentIndex()
-        if not index.isValid():
+
+        if not self.index_selected.isValid():
             return
-        file_path = self.fileSystemModel.filePath(index)
+        file_path = self.fileSystemModel.filePath(self.index_selected)
         reply = QMessageBox.question(self, "Supprimer", f"Voulez-vous vraiment supprimer {file_path} ?",
                                      QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
@@ -230,7 +247,14 @@ class FileManager(QMainWindow, Ui_FileManager):
                     # result = subprocess.run(['cmd', '/c', command], capture_output=True, text=True, shell=True)
                     # if result.returncode != 0:
                     #     raise PermissionError(result.stderr)
+                    """ on se positionne sur l'index parent s'il existe"""
+                    parent_index = self.index_selected.parentIndex()
+                    if parent_index is not None:
+                        self.listView.setRootIndex(parent_index)
+                        self.index_selected = parent_index
+
                     print(f"Fichier supprimé : {file_path}")
+
             except PermissionError as perm:
                 print(f"Permission refusée : {file_path}")
             except OSError as e:
@@ -249,12 +273,17 @@ class FileManager(QMainWindow, Ui_FileManager):
             subprocess.Popen([r'C:\Windows\System32\cmd.exe'], cwd=dir_path,
                              creationflags=subprocess.CREATE_NEW_CONSOLE)
 
+    def on_listView_clicked(self, index):
+        self.index_selected = index
+        self.infos(index)
+
     def on_treeView_clicked(self, index):
+        self.index_selected = index
+        self.listView.setRootIndex(index)
         self.infos(index)
 
     def infos(self, index):
-        self.listView.setRootIndex(index)
-        self.listView.setRootIndex(index)
+
         model = self.fileSystemModel
         parent_index = model.parent(index)
 
@@ -264,7 +293,16 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.textBrowser.setText(file_path)
         self.history_nav.insert(self.nav_index, file_path)
 
-        self.lbl_preview.setVisible(True if file_info.exists() else False)
+        self.scrollArea.setVisible(True if file_info.isFile() else False)
+        # self.wProperties.setVisible(True if file_info.isDir() else False)
+        """ si on doit afficher le preview d'un fichier alors le camembert s'efface """
+        if file_info.isFile():
+            self.canvas.figure.clear()
+            # self.scrollArea.setFixedHeight(500)
+            self.panel_preview.setFixedWidth(self.panel_preview.width())
+            self.panel_preview.setFixedHeight(500)
+            self.mime_type, _ = mimetypes.guess_type(url=file_path)
+            self.handle_file_type(self.mime_type, file_path)
 
         file_name = file_info.fileName()
         if file_name == "" and not file_info.isFile():
@@ -304,6 +342,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.worker = DirectorySizeWorker(path)
         self.worker.signals.result.connect(self.display_directory_size)
         self.worker.signals.finished.connect(self.worker_finished)
+        # self.worker.signals.file_type_detected.connect(self.handle_file_type)
         self.thread_pool.start(self.worker)
 
     def display_directory_size(self, size):
@@ -317,8 +356,32 @@ class FileManager(QMainWindow, Ui_FileManager):
         else:
             self.lbl_taille.setText(f"Taille du dossier : vide")
 
+    def handle_file_type(self, mime_type, file_path):
+        self.analyze_extension(file_path)
+
+        if self.mime_type is not None:
+            if self.mime_type.startswith('text'):
+                self.display_text_file(file_path)
+            elif mime_type.startswith('image'):
+                self.display_image_file(file_path)
+
+    def display_text_file(self, file_path):
+
+        with open(file_path, 'r') as file:
+            content = file.read()
+        self.lbl_preview.clear()
+        self.lbl_preview.setStyleSheet("color: black")
+        self.lbl_preview.setText(content)
+
+    def display_image_file(self, file_path):
+        self.listView.setItemAlignment(Qt.AlignCenter)
+        pixmap = QPixmap(file_path)
+        self.lbl_preview.clear()
+        self.lbl_preview.setPixmap(pixmap)
+        self.lbl_preview.setScaledContents(True)
+
     def worker_finished(self):
-        print("Worker finished")
+        print("Worker fini")
 
     def get_disk_usage(self, path):
         usage = shutil.disk_usage(path)
@@ -329,68 +392,6 @@ class FileManager(QMainWindow, Ui_FileManager):
             if size < 1024.0:
                 return f"{size:.{decimal_places}f} {unit}"
             size /= 1024.0
-
-    def get_file_attributes(file_path):
-        """
-        Récupère les attributs complets d'un fichier ou d'un dossier.
-
-        :param file_path: Chemin du fichier ou du dossier.
-        :return: Dictionnaire contenant les attributs du fichier ou du dossier.
-        """
-        file_path = pathlib.Path(file_path)
-
-        if not file_path.exists():
-            print(f"Le chemin {file_path} n'existe pas.")
-            return None
-
-        attributes = {}
-
-        # Informations de base
-        attributes['Path'] = str(file_path)
-        attributes['Size'] = file_path.stat().st_size
-        attributes['Last Modified'] = time.ctime(file_path.stat().st_mtime)
-        attributes['Last Accessed'] = time.ctime(file_path.stat().st_atime)
-        attributes['Date Creation'] = time.ctime(file_path.stat().st_ctime)
-
-        # Permissions
-        mode = file_path.stat().st_mode
-        attributes['Mode'] = mode
-        attributes['Read'] = os.access(file_path, os.R_OK)
-        attributes['Write'] = os.access(file_path, os.W_OK)
-        attributes['Executable'] = os.access(file_path, os.X_OK)
-
-        # Type de fichier
-        if stat.S_ISDIR(mode):
-            attributes['Type'] = 'Dossier'
-        elif stat.S_ISREG(mode):
-            attributes['Type'] = 'Fichier'
-        elif stat.S_ISLNK(mode):
-            attributes['Type'] = 'Raccourci'
-        elif stat.S_ISCHR(mode):
-            attributes['Type'] = 'Character Device'
-        elif stat.S_ISBLK(mode):
-            attributes['Type'] = 'Block Device'
-        elif stat.S_ISFIFO(mode):
-            attributes['Type'] = 'FIFO'
-        elif stat.S_ISSOCK(mode):
-            attributes['Type'] = 'Socket'
-        else:
-            attributes['Type'] = 'Inconnu'
-
-        # Attributs supplémentaires sous Windows
-        if os.name == 'nt':
-            try:
-                import win32api
-                import win32con
-                file_attrs = win32api.GetFileAttributes(str(file_path))
-                attributes['Hidden'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_HIDDEN)
-                attributes['System'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_SYSTEM)
-                attributes['Archive'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_ARCHIVE)
-                attributes['Temporary'] = bool(file_attrs & win32con.FILE_ATTRIBUTE_TEMPORARY)
-            except ImportError:
-                print("Module pywin32 non installé, impossible de récupérer les attributs Windows spécifiques.")
-
-        return attributes
 
     def draw_pie_chart(self, total_size, free_space):
         used_space = total_size - free_space
@@ -407,29 +408,31 @@ class FileManager(QMainWindow, Ui_FileManager):
 
     def update_lists(self, index):
         self.nav_index = len(self.history_nav) - 1
+        self.listView.setRootIndex(index)
         self.infos(index)
 
-    def go_to_parent_directory(self):
-        # current_index = self.treeView.currentIndex()
-        current_index = self.listView.currentIndex()
-        if not current_index.isValid():
-            return
-
-        parent_index = self.fileSystemModel.parent(current_index)
-        if parent_index.isValid():
-            # self.treeView.setRootIndex(parent_index)
-            self.update_lists(parent_index)
-
     def open_context_menu(self, position):
-        indexes = self.treeView.selectedIndexes()
-        if not indexes:
+
+        sender = self.sender()
+
+        if isinstance(sender, QTreeView):
+            indexes = self.treeView.selectedIndexes()
+        elif isinstance(sender, QListView):
+            indexes = self.listView.selectedIndexes()
+        else:
             return
 
         menu = QMenu()
         new_folder = QAction(QIcon(f"{PATH_ROOT}/toolbar/add-folder.png"), "Nouvel élément", self)
+        new_folder.setShortcut("Ctrl+N")
         cut_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/cut.png"), "Couper", self)
+        cut_action.setShortcut("Ctrl+X")
         copy_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "Copier", self)
+        copy_action.setShortcut("Ctrl+C")
+
         rename_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/rename.png"), "Renommer", self)
+        copy_action.setShortcut("F2")
+
         delete_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/remove-folder.png"), "Supprimer", self)
         command_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/running.png"), "Exécuter commande", self)
         new_folder.triggered.connect(self.new_file)
@@ -456,6 +459,29 @@ class FileManager(QMainWindow, Ui_FileManager):
         self_geometry = self.frameGeometry()
         self_geometry.moveCenter(screen_geometry.center())
         self.move(self_geometry.topLeft())
+
+    def analyze_extension(self, file_path):
+        parts = file_path.split('.')
+        if len(parts) == 2:
+            ext = parts[1]
+            if 'txt' in ext:
+                self.mime_type = "text/plain"
+            if 'sql' in ext:
+                self.mime_type = "text/sql"
+            elif 'md' in ext:
+                self.mime_type = "text/markdown"
+            elif 'html' in ext:
+                self.mime_type = "text/html"
+            elif 'csv' in ext:
+                self.mime_type = "text/csv"
+            elif 'json' in ext:
+                self.mime_type = "text/json"
+            elif 'xml' in ext:
+                self.mime_type = "text/xml"
+            elif 'css' in ext:
+                self.mime_type = "text/css"
+            elif 'js' in ext:
+                self.mime_type = "text/js"
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ class PluginInterface:
     def perform_action(self, data):
         raise NotImplementedError("Plugins must implement this method")
 
+
 class PluginManager:
     def __init__(self):
         self.plugins = []
@@ -14,6 +15,7 @@ class PluginManager:
     def run_plugins(self, data):
         for plugin in self.plugins:
             plugin.perform_action(data)
+
 
 class SamplePlugin(PluginInterface):
     def perform_action(self, data):

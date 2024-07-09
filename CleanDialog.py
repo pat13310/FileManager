@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QThreadPool, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QThreadPool, QTimer, QRect
+from PySide6.QtGui import QColor, QPainterPath, QPainter, QBrush, QPen
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QGraphicsDropShadowEffect
 
 from CleanOptionsDialog import CleanOptionsDialog
@@ -15,14 +15,16 @@ class CleanDialog(QDialog, Ui_progressDlg):
         self.setupUi(self)
         self.apply_stylesheet()
         self.setWindowFlags(Qt.FramelessWindowHint)
-        # self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.add_shadow_effect()
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # self.add_shadow_effect()
         self.init_buttons()
         self.center_in_parent()
         self.thread_pool = QThreadPool()  # Initialiser le pool de threads
         self.cleaner = None
         self.progressBar.setValue(0)
         self.lblPercent.setText("")
+        self.config_file_path = config_file_path
+        self.lblMessage.setText("  Prêt")
 
     def connect_cleaner_signals(self):
         """Connecter les signaux du cleaner aux slots correspondants."""
@@ -36,7 +38,7 @@ class CleanDialog(QDialog, Ui_progressDlg):
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setCenterButtons(True)
         self.okButton = QPushButton("Démarrer")
-        self.cancelButton = QPushButton("Arrêter")
+        self.cancelButton = QPushButton("Fermer")
         self.optionsButton = QPushButton("Options")
         self.buttonBox.addButton(self.okButton, QDialogButtonBox.AcceptRole)
         self.buttonBox.addButton(self.cancelButton, QDialogButtonBox.RejectRole)
@@ -48,17 +50,28 @@ class CleanDialog(QDialog, Ui_progressDlg):
         self.optionsButton.clicked.connect(self.show_options_dialog)
 
     def show_options_dialog(self):
-        options_dialog = CleanOptionsDialog(self)
+        options_dialog = CleanOptionsDialog(self.config_file_path)
         options_dialog.exec()
 
     def add_shadow_effect(self):
         # Créer un effet d'ombre
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(15)  # Rayon du flou de l'ombre
-        shadow.setXOffset(2)  # Décalage horizontal de l'ombre
-        shadow.setYOffset(2)  # Décalage vertical de l'ombre
-        shadow.setColor(QColor(0, 0, 0, 60))  # Couleur de l'ombre
-        self.setGraphicsEffect(shadow)  # Appliquer l'effet d'ombre à la fenêtre de dialogue
+        shadow.setBlurRadius(20)  # Rayon du flou de l'ombre
+        shadow.setXOffset(5)  # Décalage horizontal de l'ombre
+        shadow.setYOffset(5)  # Décalage vertical de l'ombre
+        shadow.setColor(QColor(0, 0, 0, 160))
+        self.setGraphicsEffect(shadow)
+
+    def paintEvent(self, event):
+        # Dessine un fond avec des coins arrondis
+        path = QPainterPath()
+        path.addRoundedRect(QRect(0, 0, self.width(), self.height()), 10, 10)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillPath(path, QBrush(QColor(240, 240, 240)))  # Couleur de fond
+        pen = QPen(QColor(200, 200, 200), 1)  # Couleur et épaisseur du bord
+        painter.setPen(pen)
+        painter.drawPath(path)
 
     def apply_stylesheet(self):
         # Définir la feuille de style pour l'ensemble de la boîte de dialogue
@@ -142,7 +155,9 @@ class CleanDialog(QDialog, Ui_progressDlg):
     def cleaning_error(self, error_message):
         self.lblMessage.setText(f"Erreur: {error_message}")
 
-# Utilisation de CleanDialog avec une instance de Cleaner
-# config_file_path = "path_to_your_config.json"  # Remplacez par le chemin de votre fichier de configuration
-# dialog = CleanDialog(config_file_path)
-# dialog.show()
+
+if __name__ == "__main__":
+    # Utilisation de CleanDialog avec une instance de Cleaner
+    config_file_path = "scanner.json"  # Remplacez par le chemin de votre fichier de configuration
+    dialog = CleanDialog(config_file_path)
+    dialog.show()
