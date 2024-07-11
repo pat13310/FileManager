@@ -48,7 +48,7 @@ class Ui_SettingsDialog(object):
     # setupUi
 
     def retranslateUi(self, SettingsDialog):
-        SettingsDialog.setWindowTitle(QCoreApplication.translate("SettingsDialog", u"Dialog", None))
+        SettingsDialog.setWindowTitle(QCoreApplication.translate("SettingsDialog", u"Cleaner", None))
         self.checkBox.setText(QCoreApplication.translate("SettingsDialog", u"Confirmer suppression", None))
         self.checkBox_2.setText(QCoreApplication.translate("SettingsDialog", u" Prot\u00e9ger r\u00e9pertoires syst\u00e8me", None))
         self.checkBox_3.setText(QCoreApplication.translate("SettingsDialog", u"Afficher aper\u00e7u", None))

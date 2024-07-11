@@ -97,7 +97,7 @@ class Ui_progressDlg(object):
     # setupUi
 
     def retranslateUi(self, progressDlg):
-        progressDlg.setWindowTitle(QCoreApplication.translate("progressDlg", u"Dialog", None))
+        progressDlg.setWindowTitle(QCoreApplication.translate("progressDlg", u"Cleaner", None))
         self.lbl_action.setText(QCoreApplication.translate("progressDlg", u"  Nettoyage en cours ...", None))
         self.lblPercent.setText(QCoreApplication.translate("progressDlg", u"24%", None))
         self.lblMessage.setText(QCoreApplication.translate("progressDlg", u"...", None))

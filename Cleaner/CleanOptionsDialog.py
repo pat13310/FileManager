@@ -59,5 +59,5 @@ if __name__ == "__main__":
 
     app = QApplication(sys.argv)
 
-    dialog = CleanOptionsDialog('scanner.json')
+    dialog = CleanOptionsDialog('../scanner.json')
     dialog.exec()

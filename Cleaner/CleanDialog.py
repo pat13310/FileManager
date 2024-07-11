@@ -2,8 +2,8 @@ from PySide6.QtCore import Qt, QThreadPool, QTimer, QRect
 from PySide6.QtGui import QColor, QPainterPath, QPainter, QBrush, QPen
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QGraphicsDropShadowEffect
 
-from CleanOptionsDialog import CleanOptionsDialog
-from Cleaner import Cleaner
+from Cleaner.CleanOptionsDialog import CleanOptionsDialog
+from Cleaner.Cleaner import Cleaner
 from ui.ui_ProgressDlg import Ui_progressDlg
 
 
@@ -158,6 +158,6 @@ class CleanDialog(QDialog, Ui_progressDlg):
 
 if __name__ == "__main__":
     # Utilisation de CleanDialog avec une instance de Cleaner
-    config_file_path = "scanner.json"  # Remplacez par le chemin de votre fichier de configuration
+    config_file_path = "../scanner.json"  # Remplacez par le chemin de votre fichier de configuration
     dialog = CleanDialog(config_file_path)
     dialog.show()

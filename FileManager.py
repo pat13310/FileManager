@@ -1,3 +1,4 @@
+import ctypes
 import mimetypes
 import os
 import shutil
@@ -5,15 +6,16 @@ import subprocess
 import sys
 
 from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
-from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication, QPixmap
+from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
     QWidget, QTreeView, QListView
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from CleanDialog import CleanDialog
+from Cleaner.CleanDialog import CleanDialog
 from SettingsDialog import SettingsDialog
-from Utils import DirectorySizeWorker
+from Utils.DirectorySizeWorker import DirectorySizeWorker
+from Utils.FileUtils import FileUtils
 from ui.ui_FileManager import Ui_FileManager
 
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -22,10 +24,17 @@ PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
 class FileManager(QMainWindow, Ui_FileManager):
     def __init__(self, parent=None):
         super(FileManager, self).__init__(parent)
+
+        self.setupUi(self)
+        if len(sys.argv) > 1 and sys.argv[1] == "--admin":
+            self.setWindowTitle("Gestionnaire FileManager - Mode Administrateur")
+        else:
+            self.setWindowTitle("Gestionnaire FileManager")
+
+        print(sys.argv)
         self.worker = None
         self.mime_type = None
         self.nav_index = 0
-        self.setupUi(self)
         self.connect_actions()
         self.history_nav = []
         # Set the application locale to French
@@ -256,6 +265,8 @@ class FileManager(QMainWindow, Ui_FileManager):
                     print(f"Fichier supprimé : {file_path}")
 
             except PermissionError as perm:
+                self.show_admin_dialog(file_path)
+
                 print(f"Permission refusée : {file_path}")
             except OSError as e:
                 print(f"Erreur lors de la suppression de {file_path} : {e}")
@@ -282,11 +293,42 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.listView.setRootIndex(index)
         self.infos(index)
 
+    def show_admin_dialog(self, file):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText("Vous devez disposer des droits d'administrateur pour supprimer cet élément.")
+        msg.setWindowTitle("Accès refusé")
+        msg.setStandardButtons(QMessageBox.Ignore | QMessageBox.Cancel | QMessageBox.Ok)
+
+        button_continue = msg.button(QMessageBox.Ok)
+        button_continue.setText("Continuer")
+        button_ignore = msg.button(QMessageBox.Ignore)
+        button_ignore.setText("Ignorer")
+        button_cancel = msg.button(QMessageBox.Cancel)
+        button_cancel.setText("Annuler")
+
+        result = msg.exec()
+
+        if result == QMessageBox.Ok:
+            self.request_admin_rights(file)
+        elif result == QMessageBox.Ignore:
+            pass  # L'utilisateur a choisi d'ignorer l'action
+        elif result == QMessageBox.Cancel:
+            self.on_error("Action annulée par l'utilisateur")
+
+    def request_admin_rights(self, file):
+        # ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable,
+        #                                     " ".join([sys.executable] + sys.argv + ["--admin"]), None, 1)
+        # QMessageBox.information(self, "Admin Rights Required", "Restarting as admin.")
+        params = " ".join(['"' + arg + '"' for arg in sys.argv] + ["--admin"])
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        sys.exit()  # Fermez l'application après avoir demandé des droits admin
+
     def infos(self, index):
 
         model = self.fileSystemModel
         parent_index = model.parent(index)
-
+        self.canvas.figure.clear()
         file_path = self.fileSystemModel.filePath(index)
         file_info = self.fileSystemModel.fileInfo(index)
 
@@ -295,14 +337,6 @@ class FileManager(QMainWindow, Ui_FileManager):
 
         self.scrollArea.setVisible(True if file_info.isFile() else False)
         # self.wProperties.setVisible(True if file_info.isDir() else False)
-        """ si on doit afficher le preview d'un fichier alors le camembert s'efface """
-        if file_info.isFile():
-            self.canvas.figure.clear()
-            # self.scrollArea.setFixedHeight(500)
-            self.panel_preview.setFixedWidth(self.panel_preview.width())
-            self.panel_preview.setFixedHeight(500)
-            self.mime_type, _ = mimetypes.guess_type(url=file_path)
-            self.handle_file_type(self.mime_type, file_path)
 
         file_name = file_info.fileName()
         if file_name == "" and not file_info.isFile():
@@ -319,30 +353,38 @@ class FileManager(QMainWindow, Ui_FileManager):
 
         self.lbl_type.setText(f"Type: {file_info.suffix() if file_info.isFile() else 'Dossier'}")
 
+        if file_info.isFile():
+
+            self.canvas.setVisible(False)
+            self.panel_preview.setFixedWidth(self.panel_preview.width())
+            self.panel_preview.setFixedHeight(500)
+            self.mime_type, _ = mimetypes.guess_type(url=file_path)
+            file_size = file_info.size()
+            total_size, free_space = self.get_disk_usage(os.path.abspath(os.sep))
+            percentage = (file_size / total_size) * 100 if total_size > 0 else 0
+            file_size = FileUtils.get_size(file_size)
+            self.lbl_taille.setText(f"Taille du fichier : {file_size} ({percentage:.2f}%)")
+            self.lbl_preview.setText("")
+
+            self.handle_file_type(self.mime_type, file_path)
+
         if file_info.isDir():
             if os.path.ismount(file_path):
                 total_size, free_space = self.get_disk_usage(file_path)
                 directory_size = total_size - free_space
                 percentage = (directory_size / total_size) * 100 if total_size > 0 else 0
                 self.draw_pie_chart(total_size, free_space)
-                total_size = self.get_size(total_size)
-                free_space = self.get_size(free_space)
+                total_size = FileUtils.get_size(total_size)
+                free_space = FileUtils.get_size(free_space)
                 self.lbl_taille.setText(f"Taille totale / dispo : {total_size} / {free_space} ({percentage:.2f}%)")
             else:
                 self.lbl_taille.setText(f"Taille du dossier : calcul en cours ...")
                 self.calculate_directory_size(file_path)
-        else:
-            file_size = file_info.size()
-            total_size, free_space = self.get_disk_usage(os.path.abspath(os.sep))
-            percentage = (file_size / total_size) * 100 if total_size > 0 else 0
-            file_size = self.get_size(file_size)
-            self.lbl_taille.setText(f"Taille du fichier : {file_size} ({percentage:.2f}%)")
 
     def calculate_directory_size(self, path):
         self.worker = DirectorySizeWorker(path)
         self.worker.signals.result.connect(self.display_directory_size)
         self.worker.signals.finished.connect(self.worker_finished)
-        # self.worker.signals.file_type_detected.connect(self.handle_file_type)
         self.thread_pool.start(self.worker)
 
     def display_directory_size(self, size):
@@ -350,48 +392,30 @@ class FileManager(QMainWindow, Ui_FileManager):
         root_size, _ = self.get_disk_usage(os.path.abspath(os.sep))
         percentage = (directory_size / root_size) * 100 if root_size > 0 else 0
         self.draw_pie_chart(root_size, directory_size)
-        directory_size = self.get_size(directory_size)
+        directory_size = FileUtils.get_size(directory_size)
         if size > 0:
             self.lbl_taille.setText(f"Taille du dossier : {directory_size} ({percentage:.2f}%)")
         else:
             self.lbl_taille.setText(f"Taille du dossier : vide")
 
     def handle_file_type(self, mime_type, file_path):
-        self.analyze_extension(file_path)
+        self.mime_type = FileUtils.analyze_extension(file_path)
 
-        if self.mime_type is not None:
+        if self.mime_type:
             if self.mime_type.startswith('text'):
-                self.display_text_file(file_path)
-            elif mime_type.startswith('image'):
-                self.display_image_file(file_path)
-
-    def display_text_file(self, file_path):
-
-        with open(file_path, 'r') as file:
-            content = file.read()
-        self.lbl_preview.clear()
-        self.lbl_preview.setStyleSheet("color: black")
-        self.lbl_preview.setText(content)
-
-    def display_image_file(self, file_path):
-        self.listView.setItemAlignment(Qt.AlignCenter)
-        pixmap = QPixmap(file_path)
-        self.lbl_preview.clear()
-        self.lbl_preview.setPixmap(pixmap)
-        self.lbl_preview.setScaledContents(True)
+                FileUtils.display_text_file(self.lbl_preview, file_path)
+            elif self.mime_type.startswith('image'):
+                FileUtils.display_image_file(self.panel_listview, self.lbl_preview, file_path)
+            elif self.mime_type.__contains__('pdf'):
+                self.lbl_preview.clear()
+                FileUtils.display_pdf_file(self.lbl_preview, file_path)
 
     def worker_finished(self):
-        print("Worker fini")
+        print("Travail fini")
 
     def get_disk_usage(self, path):
         usage = shutil.disk_usage(path)
         return usage.total, usage.free
-
-    def get_size(self, size, decimal_places=2):
-        for unit in ['Octets', 'Ko', 'Mo', 'Go', 'To', 'Po']:
-            if size < 1024.0:
-                return f"{size:.{decimal_places}f} {unit}"
-            size /= 1024.0
 
     def draw_pie_chart(self, total_size, free_space):
         used_space = total_size - free_space
@@ -405,6 +429,7 @@ class FileManager(QMainWindow, Ui_FileManager):
                wedgeprops=dict(width=0.5, edgecolor='black'))
         ax.axis('equal')
         self.canvas.draw()
+        self.canvas.setVisible(True)
 
     def update_lists(self, index):
         self.nav_index = len(self.history_nav) - 1
@@ -459,29 +484,6 @@ class FileManager(QMainWindow, Ui_FileManager):
         self_geometry = self.frameGeometry()
         self_geometry.moveCenter(screen_geometry.center())
         self.move(self_geometry.topLeft())
-
-    def analyze_extension(self, file_path):
-        parts = file_path.split('.')
-        if len(parts) == 2:
-            ext = parts[1]
-            if 'txt' in ext:
-                self.mime_type = "text/plain"
-            if 'sql' in ext:
-                self.mime_type = "text/sql"
-            elif 'md' in ext:
-                self.mime_type = "text/markdown"
-            elif 'html' in ext:
-                self.mime_type = "text/html"
-            elif 'csv' in ext:
-                self.mime_type = "text/csv"
-            elif 'json' in ext:
-                self.mime_type = "text/json"
-            elif 'xml' in ext:
-                self.mime_type = "text/xml"
-            elif 'css' in ext:
-                self.mime_type = "text/css"
-            elif 'js' in ext:
-                self.mime_type = "text/js"
 
 
 if __name__ == "__main__":
