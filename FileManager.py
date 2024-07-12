@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 
-from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
+from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool, QModelIndex
 from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
@@ -33,6 +33,7 @@ class FileManager(QMainWindow, Ui_FileManager):
     def __init__(self, parent=None):
         super(FileManager, self).__init__(parent)
 
+        self.index_selected = None
         self.setupUi(self)
         if len(sys.argv) > 1 and sys.argv[1] == "--admin":
             self.setWindowTitle("Gestionnaire FileManager - Mode Administrateur")
@@ -66,6 +67,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.canvas = FigureCanvas(plt.Figure())
         self.verticalLayout_4.addWidget(self.canvas)
         self.locale = QLocale(QLocale.Language.French)
+        self.init_canvas()
         self.treeView.setStyleSheet("""
                     QTreeView::item:hover {
                                background-color: dodgerblue;
@@ -90,7 +92,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.thread_pool = QThreadPool()
         self.cleanDlg = CleanDialog("scanner.json")
         self.center_on_screen()
-        self.index_selected = None
+        self.index_selected: QModelIndex
 
         self.scrollArea.setFixedHeight(400)
         self.web_view = QWebEngineView(self.panel_preview)
@@ -99,7 +101,10 @@ class FileManager(QMainWindow, Ui_FileManager):
         settings.setAttribute(QWebEngineSettings.PdfViewerEnabled, True)
         self.web_view.setVisible(False)
 
-        OfficeUtils.check_word_installation()
+        # OfficeUtils.check_word_installation()
+
+    def init_canvas(self):
+        self.canvas.resize(250, 250)
 
     def init_toolbar(self):
         self.toolBar.setIconSize(QSize(15, 15))
@@ -109,7 +114,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         config = QAction(QIcon(f"{PATH_ROOT}/toolbar/settings.png"), "", self)
         parent_dir = QAction(QIcon(f"{PATH_ROOT}/toolbar/up.png"), "", self)
         clean = QAction(QIcon(f"{PATH_ROOT}/toolbar/clean.png"), "", self)
-        # parent_dir.triggered.connect(self.go_to_parent_directory)
+        parent_dir.triggered.connect(lambda: self.navigate("up"))
         clean.triggered.connect(self.clean_dir)
         config.triggered.connect(self.open_settings)
         clean.triggered.connect(self.open_clean)
@@ -140,6 +145,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.listView.doubleClicked.connect(self.update_lists)
         self.btn_prev.clicked.connect(lambda: self.navigate("prev"))
         self.btn_next.clicked.connect(lambda: self.navigate("next"))
+        self.btn_up.clicked.connect(lambda: self.navigate("up"))
         self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.listView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.open_context_menu)
@@ -167,18 +173,41 @@ class FileManager(QMainWindow, Ui_FileManager):
             print("Paramètres rejetés")
 
     def navigate(self, direction):
+        path = ""
         if direction == "prev":
             self.nav_index -= 1
             if self.nav_index < 0:
                 self.nav_index = len(self.history_nav) - 1
-        else:
-            self.nav_index += 1
-            if self.nav_index >= len(self.history_nav):
-                self.nav_index = len(self.history_nav) - 1
+            path = self.history_nav[self.nav_index]
 
-        path = self.history_nav[self.nav_index]
-        self.listView.setRootIndex(self.fileSystemModel.index(path))
-        self.textBrowser.setText(path)
+        elif direction == "next":
+            self.nav_index += 1
+            if self.nav_index > len(self.history_nav) - 1:
+                self.nav_index = 0
+            path = self.history_nav[self.nav_index]
+
+        elif direction == "up":
+            if not self.index_selected.isValid():
+                return
+
+            parent_index = self.index_selected.parent()
+            if parent_index.isValid():
+                path = self.fileSystemModel.filePath(parent_index)
+                self.history_nav.insert(self.nav_index + 1, path)
+                self.nav_index += 1
+                set_history = set(self.history_nav)
+                self.history_nav = list(set_history)
+                self.index_selected = parent_index
+
+        if path:
+            self.listView.setRootIndex(self.fileSystemModel.index(path))
+            self.treeView.setCurrentIndex(self.fileSystemModel.index(path))
+            if not path in self.history_nav:
+                self.textBrowser.setText(path)
+
+            self.infos(self.fileSystemModel.index(path))
+
+            print(self.nav_index)
 
     def clean_dir(self):
         pass
@@ -293,7 +322,9 @@ class FileManager(QMainWindow, Ui_FileManager):
                              creationflags=subprocess.CREATE_NEW_CONSOLE)
 
     def on_listView_clicked(self, index):
-        self.index_selected = index
+        file_info = self.fileSystemModel.fileInfo(index)
+        if file_info.isDir():
+            self.index_selected = index
         self.infos(index)
 
     def on_treeView_clicked(self, index):
@@ -335,13 +366,13 @@ class FileManager(QMainWindow, Ui_FileManager):
     def infos(self, index):
 
         model = self.fileSystemModel
-        parent_index = model.parent(index)
+        # parent_index = model.parent(index)
 
         file_path = self.fileSystemModel.filePath(index)
         file_info = self.fileSystemModel.fileInfo(index)
 
-        self.textBrowser.setText(file_path)
         self.history_nav.insert(self.nav_index, file_path)
+        self.init_canvas()
         self.canvas.figure.clear()
         self.canvas.setVisible(False)
         self.scrollArea.setVisible(True if file_info.isFile() else False)
@@ -376,6 +407,7 @@ class FileManager(QMainWindow, Ui_FileManager):
             self.handle_file_type(file_path)
 
         elif file_info.isDir():
+            self.textBrowser.setText(file_path)
             if os.path.ismount(file_path):
                 total_size, free_space = self.get_disk_usage(file_path)
                 directory_size = total_size - free_space

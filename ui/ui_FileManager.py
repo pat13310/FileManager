@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'FileManagerqLhJHg.ui'
+## Form generated from reading UI file 'FileManagerKozSJo.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.7.0
 ##
@@ -27,7 +27,7 @@ class Ui_FileManager(object):
     def setupUi(self, FileManager):
         if not FileManager.objectName():
             FileManager.setObjectName(u"FileManager")
-        FileManager.resize(1264, 703)
+        FileManager.resize(1334, 717)
         FileManager.setUnifiedTitleAndToolBarOnMac(False)
         self.actionNouveau = QAction(FileManager)
         self.actionNouveau.setObjectName(u"actionNouveau")
@@ -67,6 +67,14 @@ class Ui_FileManager(object):
         self.btn_next.setIcon(icon1)
 
         self.horizontalLayout.addWidget(self.btn_next)
+
+        self.btn_up = QToolButton(self.widget)
+        self.btn_up.setObjectName(u"btn_up")
+        self.btn_up.setMinimumSize(QSize(32, 32))
+        icon2 = QIcon(QIcon.fromTheme(u"go-up"))
+        self.btn_up.setIcon(icon2)
+
+        self.horizontalLayout.addWidget(self.btn_up)
 
         self.textBrowser = QTextBrowser(self.widget)
         self.textBrowser.setObjectName(u"textBrowser")
@@ -133,17 +141,36 @@ class Ui_FileManager(object):
         self.listView.setObjectName(u"listView")
         sizePolicy1.setHeightForWidth(self.listView.sizePolicy().hasHeightForWidth())
         self.listView.setSizePolicy(sizePolicy1)
+        self.listView.setMinimumSize(QSize(400, 400))
+        self.listView.setMaximumSize(QSize(420, 16777215))
+        font = QFont()
+        font.setStyleStrategy(QFont.PreferDefault)
+        self.listView.setFont(font)
+        self.listView.setMouseTracking(False)
         self.listView.setAcceptDrops(True)
         self.listView.setFrameShape(QFrame.Shape.NoFrame)
+        self.listView.setFrameShadow(QFrame.Shadow.Sunken)
+        self.listView.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.listView.setDragEnabled(True)
+        self.listView.setProperty("isWrapping", False)
+        self.listView.setModelColumn(0)
         self.splitter_2.addWidget(self.listView)
         self.wProperties = QWidget(self.splitter_2)
         self.wProperties.setObjectName(u"wProperties")
         sizePolicy1.setHeightForWidth(self.wProperties.sizePolicy().hasHeightForWidth())
         self.wProperties.setSizePolicy(sizePolicy1)
         self.wProperties.setMinimumSize(QSize(0, 125))
-        self.wProperties.setMaximumSize(QSize(16777215, 150))
+        self.wProperties.setMaximumSize(QSize(16777215, 300))
         self.verticalLayout_5 = QVBoxLayout(self.wProperties)
         self.verticalLayout_5.setObjectName(u"verticalLayout_5")
+        self.label = QLabel(self.wProperties)
+        self.label.setObjectName(u"label")
+        font1 = QFont()
+        font1.setBold(True)
+        self.label.setFont(font1)
+
+        self.verticalLayout_5.addWidget(self.label)
+
         self.lbl_nom = QLabel(self.wProperties)
         self.lbl_nom.setObjectName(u"lbl_nom")
         self.lbl_nom.setStyleSheet(u"color: rgb(0, 0, 0);")
@@ -152,6 +179,8 @@ class Ui_FileManager(object):
 
         self.lbl_chemin = QLabel(self.wProperties)
         self.lbl_chemin.setObjectName(u"lbl_chemin")
+        self.lbl_chemin.setMaximumSize(QSize(16777215, 16777215))
+        self.lbl_chemin.setSizeIncrement(QSize(0, 4))
         self.lbl_chemin.setStyleSheet(u"color: rgb(0, 0, 0);")
 
         self.verticalLayout_5.addWidget(self.lbl_chemin)
@@ -194,12 +223,12 @@ class Ui_FileManager(object):
         self.scrollArea.setObjectName(u"scrollArea")
         sizePolicy1.setHeightForWidth(self.scrollArea.sizePolicy().hasHeightForWidth())
         self.scrollArea.setSizePolicy(sizePolicy1)
-        #self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scrollArea.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaContents = QWidget()
         self.scrollAreaContents.setObjectName(u"scrollAreaContents")
-        self.scrollAreaContents.setGeometry(QRect(0, 0, 382, 539))
+        self.scrollAreaContents.setGeometry(QRect(0, 0, 446, 553))
         sizePolicy1.setHeightForWidth(self.scrollAreaContents.sizePolicy().hasHeightForWidth())
         self.scrollAreaContents.setSizePolicy(sizePolicy1)
         self.scrollAreaContents.setMaximumSize(QSize(16777215, 16777215))
@@ -212,9 +241,9 @@ class Ui_FileManager(object):
         sizePolicy5.setVerticalStretch(2)
         sizePolicy5.setHeightForWidth(self.lbl_preview.sizePolicy().hasHeightForWidth())
         self.lbl_preview.setSizePolicy(sizePolicy5)
-        self.lbl_preview.setMinimumSize(QSize(0, 0))
-        self.lbl_preview.setStyleSheet(u"background-color: white;color:black;\n"
-"color:white;\n"
+        self.lbl_preview.setMinimumSize(QSize(350, 0))
+        self.lbl_preview.setStyleSheet(u"background-color: white;\n"
+"color:black;;\n"
 "padding:4px;")
         self.lbl_preview.setFrameShape(QFrame.Shape.StyledPanel)
         self.lbl_preview.setTextFormat(Qt.TextFormat.AutoText)
@@ -236,7 +265,7 @@ class Ui_FileManager(object):
         FileManager.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(FileManager)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1264, 33))
+        self.menubar.setGeometry(QRect(0, 0, 1334, 33))
         self.menuFichier = QMenu(self.menubar)
         self.menuFichier.setObjectName(u"menuFichier")
         FileManager.setMenuBar(self.menubar)
@@ -271,6 +300,8 @@ class Ui_FileManager(object):
         self.actionRenommer.setText(QCoreApplication.translate("FileManager", u"Renommer", None))
         self.btn_prev.setText(QCoreApplication.translate("FileManager", u"...", None))
         self.btn_next.setText(QCoreApplication.translate("FileManager", u"...", None))
+        self.btn_up.setText(QCoreApplication.translate("FileManager", u"...", None))
+        self.label.setText(QCoreApplication.translate("FileManager", u"Propri\u00e9t\u00e9s :", None))
         self.lbl_nom.setText(QCoreApplication.translate("FileManager", u"Nom", None))
         self.lbl_chemin.setText(QCoreApplication.translate("FileManager", u"Chemin", None))
         self.lbl_taille.setText(QCoreApplication.translate("FileManager", u"Taille", None))
