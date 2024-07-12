@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 
-import pypandoc
 from PySide6.QtCore import (
     QCoreApplication,
     Qt,
@@ -633,11 +632,6 @@ class FileManager(QMainWindow, Ui_FileManager):
         self_geometry = self.frameGeometry()
         self_geometry.moveCenter(screen_geometry.center())
         self.move(self_geometry.topLeft())
-
-    def convert_word_to_html(self, docx_path):
-        html_path = docx_path.replace(".docx", ".html").replace(".DOCX", ".html")
-        pypandoc.convert_file(docx_path, "html", outputfile=html_path)
-        return html_path
 
     def convert_excel_to_html(self, xlsx_path):
         html_path = xlsx_path.replace(".xlsx", ".html").replace(".XLSX", ".html")

@@ -4,18 +4,27 @@ import subprocess
 from enum import Enum
 from threading import Thread
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPlainTextEdit
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QVBoxLayout,
+    QWidget,
+    QPlainTextEdit,
+)
 from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool, Qt
 from PySide6.QtGui import QTextCursor, QColor, QPalette, QTextCharFormat
+
 
 class ShellType(Enum):
     CMD = "cmd"
     POWERSHELL = "powershell"
     BASH = "bash"
 
+
 class WorkerSignals(QObject):
     output = Signal(str)
     finished = Signal()
+
 
 class CommandRunnable(QRunnable):
     def __init__(self, shell, cmd, cwd, signals):
@@ -30,7 +39,15 @@ class CommandRunnable(QRunnable):
         command, encoding = self.prepare_command()
 
         try:
-            self.process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=self.cwd, encoding=encoding)
+            self.process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=self.cwd,
+                encoding=encoding,
+            )
             self.read_output(self.process.stdout)
             self.read_output(self.process.stderr)
             self.process.wait()
@@ -42,12 +59,12 @@ class CommandRunnable(QRunnable):
     def prepare_command(self):
         cmd = self.convert_command(self.cmd)
         if self.shell == ShellType.CMD:
-            return f'cmd.exe /c {cmd}', 'cp850'
+            return f"cmd.exe /c {cmd}", "cp850"
         elif self.shell == ShellType.POWERSHELL:
-            return f'powershell.exe -Command "{cmd}"', 'utf-8'
+            return f'powershell.exe -Command "{cmd}"', "utf-8"
         elif self.shell == ShellType.BASH:
-            return f'bash -c "{cmd}"', 'utf-8'
-        return cmd, 'utf-8'
+            return f'bash -c "{cmd}"', "utf-8"
+        return cmd, "utf-8"
 
     def convert_command(self, cmd):
         if self.shell == ShellType.CMD:
@@ -65,25 +82,27 @@ class CommandRunnable(QRunnable):
     def convert_ls_to_dir(self, cmd):
         args = cmd.split()
         options = {
-            '-l': '/-C',
-            '-a': '/A',
-            '-h': '',
-            '-R': '/S',
+            "-l": "/-C",
+            "-a": "/A",
+            "-h": "",
+            "-R": "/S",
         }
         new_cmd = ["dir"] + [options.get(arg, arg) for arg in args[1:]]
         return " ".join(new_cmd)
 
     def read_output(self, stream):
         def read_stream():
-            for line in iter(stream.readline, ''):
+            for line in iter(stream.readline, ""):
                 self.signals.output.emit(line.strip())
             stream.close()
+
         Thread(target=read_stream).start()
 
     def stop(self):
         if self.process:
             self.process.terminate()
             self.signals.output.emit("Process terminated")
+
 
 class ConsoleWidget(QPlainTextEdit):
     def __init__(self, shell, cwd, thread_pool):
@@ -130,16 +149,16 @@ class ConsoleWidget(QPlainTextEdit):
         cursor.select(QTextCursor.LineUnderCursor)
         cmd = cursor.selectedText().strip()
         if cmd.startswith(f"{self.cwd}> "):
-            cmd = cmd[len(f"{self.cwd}> "):]
+            cmd = cmd[len(f"{self.cwd}> ") :]
         if cmd:
             self.history.append(cmd)
             self.history_index = len(self.history)
-            if cmd.lower() == 'cls':
+            if cmd.lower() == "cls":
                 self.clear_screen()
-            elif cmd.lower() == 'pwd':
+            elif cmd.lower() == "pwd":
                 self.append_output(self.cwd)
                 self.command_finished()
-            elif cmd.startswith('cd '):
+            elif cmd.startswith("cd "):
                 new_dir = cmd[3:].strip()
                 self.change_directory(new_dir)
             else:
@@ -235,6 +254,7 @@ class ConsoleWidget(QPlainTextEdit):
         if self.current_runnable and self.current_runnable.process:
             self.current_runnable.stop()
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -252,6 +272,7 @@ class MainWindow(QMainWindow):
 
         self.console.clear_screen()
         self.resize(800, 600)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

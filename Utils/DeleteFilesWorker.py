@@ -36,4 +36,3 @@ class DeleteFilesWorker(QRunnable):
             except FileNotFoundError as e:
                 print(f"FileNotFoundError: {e}")
                 self.signals.error.emit(str(e))
-

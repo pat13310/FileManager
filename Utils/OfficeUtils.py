@@ -1,10 +1,13 @@
 from comtypes.client import CreateObject
 import os
 
+
 class OfficeUtils:
     @staticmethod
     def convert_word_to_pdf(docx_path):
-        pdf_path = os.path.abspath(docx_path).replace('.docx', '.pdf').replace('.DOCX', '.pdf')
+        pdf_path = (
+            os.path.abspath(docx_path).replace(".docx", ".pdf").replace(".DOCX", ".pdf")
+        )
         docx_path = os.path.abspath(docx_path)
 
         if not os.path.exists(docx_path):
@@ -13,7 +16,7 @@ class OfficeUtils:
 
         try:
             print(f"Tentative d'ouverture du fichier Word: {docx_path}")
-            word = CreateObject('Word.Application')
+            word = CreateObject("Word.Application")
             word.Visible = False
             doc = word.Documents.Open(docx_path)
             print(f"Document Word ouvert avec succès: {docx_path}")
@@ -28,7 +31,9 @@ class OfficeUtils:
 
     @staticmethod
     def convert_excel_to_pdf(xlsx_path):
-        pdf_path = os.path.abspath(xlsx_path).replace('.xlsx', '.pdf').replace('.XLSX', '.pdf')
+        pdf_path = (
+            os.path.abspath(xlsx_path).replace(".xlsx", ".pdf").replace(".XLSX", ".pdf")
+        )
         xlsx_path = os.path.abspath(xlsx_path)
 
         if not os.path.exists(xlsx_path):
@@ -37,7 +42,7 @@ class OfficeUtils:
 
         try:
             print(f"Tentative d'ouverture du fichier Excel: {xlsx_path}")
-            excel = CreateObject('Excel.Application')
+            excel = CreateObject("Excel.Application")
             excel.Visible = False
             wb = excel.Workbooks.Open(xlsx_path)
             print(f"Document Excel ouvert avec succès: {xlsx_path}")
@@ -53,7 +58,7 @@ class OfficeUtils:
     @staticmethod
     def check_word_installation():
         try:
-            word = CreateObject('Word.Application')
+            word = CreateObject("Word.Application")
             word.Visible = False
             doc = word.Documents.Add()
             doc.Close()
