@@ -1,6 +1,11 @@
 from PySide6.QtCore import Qt, QThreadPool, QTimer, QRect
 from PySide6.QtGui import QColor, QPainterPath, QPainter, QBrush, QPen
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QGraphicsDropShadowEffect
+from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QPushButton,
+    QGraphicsDropShadowEffect,
+)
 
 from Cleaner.CleanOptionsDialog import CleanOptionsDialog
 from Cleaner.Cleaner import Cleaner
@@ -10,6 +15,10 @@ from ui.ui_ProgressDlg import Ui_progressDlg
 class CleanDialog(QDialog, Ui_progressDlg):
     def __init__(self, config_file_path, parent=None):
         super(CleanDialog, self).__init__(parent)
+        self.buttonBox = QDialogButtonBox(self)
+        self.okButton = QPushButton("Démarrer")
+        self.cancelButton = QPushButton("Fermer")
+        self.optionsButton = QPushButton("Options")
         self.parent = parent
         self.config_file_path = config_file_path
         self.setupUi(self)
@@ -34,19 +43,19 @@ class CleanDialog(QDialog, Ui_progressDlg):
         self.cleaner.signals.error.connect(self.cleaning_error)
 
     def init_buttons(self):
-        self.buttonBox = QDialogButtonBox(self)
         self.buttonBox.setOrientation(Qt.Horizontal)
         self.buttonBox.setCenterButtons(True)
-        self.okButton = QPushButton("Démarrer")
-        self.cancelButton = QPushButton("Fermer")
-        self.optionsButton = QPushButton("Options")
         self.buttonBox.addButton(self.okButton, QDialogButtonBox.AcceptRole)
         self.buttonBox.addButton(self.cancelButton, QDialogButtonBox.RejectRole)
         self.buttonBox.addButton(self.optionsButton, QDialogButtonBox.HelpRole)
         self.verticalLayout.addWidget(self.buttonBox)
 
-        self.okButton.clicked.connect(self.start_cleaning)  # Connecter le bouton à start_cleaning
-        self.cancelButton.clicked.connect(self.stop_cleaning)  # Connecter pour arrêter le nettoyage
+        self.okButton.clicked.connect(
+            self.start_cleaning
+        )  # Connecter le bouton à start_cleaning
+        self.cancelButton.clicked.connect(
+            self.stop_cleaning
+        )  # Connecter pour arrêter le nettoyage
         self.optionsButton.clicked.connect(self.show_options_dialog)
 
     def show_options_dialog(self):
@@ -127,13 +136,21 @@ class CleanDialog(QDialog, Ui_progressDlg):
             self.move(self_geometry.topLeft())
 
     def start_cleaning(self):
-        if not self.cleaner or not self.cleaner.is_running():  # Vérifier si Cleaner n'est pas déjà en cours d'exécution
-            self.cleaner = Cleaner(self.config_file_path)  # Créer une nouvelle instance de Cleaner
+        if (
+            not self.cleaner or not self.cleaner.is_running()
+        ):  # Vérifier si Cleaner n'est pas déjà en cours d'exécution
+            self.cleaner = Cleaner(
+                self.config_file_path
+            )  # Créer une nouvelle instance de Cleaner
             self.connect_cleaner_signals()  # Connecter les signaux de la nouvelle instance
-            self.thread_pool.start(self.cleaner)  # Démarrer Cleaner via le pool de threads
+            self.thread_pool.start(
+                self.cleaner
+            )  # Démarrer Cleaner via le pool de threads
 
     def stop_cleaning(self):
-        if self.cleaner and self.cleaner.is_running():  # Vérifier si Cleaner est en cours d'exécution
+        if (
+            self.cleaner and self.cleaner.is_running()
+        ):  # Vérifier si Cleaner est en cours d'exécution
             self.cleaner.request_cancel()  # Demander l'arrêt du nettoyage
         QTimer.singleShot(500, self.reject)
 
@@ -158,6 +175,8 @@ class CleanDialog(QDialog, Ui_progressDlg):
 
 if __name__ == "__main__":
     # Utilisation de CleanDialog avec une instance de Cleaner
-    config_file_path = "../scanner.json"  # Remplacez par le chemin de votre fichier de configuration
+    config_file_path = (
+        "../scanner.json"  # Remplacez par le chemin de votre fichier de configuration
+    )
     dialog = CleanDialog(config_file_path)
     dialog.show()

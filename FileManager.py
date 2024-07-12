@@ -5,11 +5,30 @@ import shutil
 import subprocess
 import sys
 
-from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool, QModelIndex
+import pypandoc
+from PySide6.QtCore import (
+    QCoreApplication,
+    Qt,
+    QLocale,
+    QTranslator,
+    QSize,
+    QThreadPool,
+    QModelIndex,
+)
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
-    QWidget, QTreeView, QListView
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QFileSystemModel,
+    QDialog,
+    QMenu,
+    QMessageBox,
+    QInputDialog,
+    QWidget,
+)
 from comtypes.client import CreateObject
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -20,11 +39,6 @@ from Utils.DirectorySizeWorker import DirectorySizeWorker
 from Utils.FileUtils import FileUtils
 from Utils.OfficeUtils import OfficeUtils
 from ui.ui_FileManager import Ui_FileManager
-
-from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import QUrl
-
-import pypandoc
 
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -202,7 +216,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         if path:
             self.listView.setRootIndex(self.fileSystemModel.index(path))
             self.treeView.setCurrentIndex(self.fileSystemModel.index(path))
-            if not path in self.history_nav:
+            if path not in self.history_nav:
                 self.textBrowser.setText(path)
 
             self.infos(self.fileSystemModel.index(path))
@@ -214,22 +228,37 @@ class FileManager(QMainWindow, Ui_FileManager):
 
     def new_file(self):
         if not self.index_selected.isValid():
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un emplacement valide.")
+            QMessageBox.warning(
+                self, "Erreur", "Veuillez sélectionner un emplacement valide."
+            )
             return
 
         current_path = self.fileSystemModel.filePath(self.index_selected)
 
         # Vérifier si le chemin actuel est un dossier
         if not os.path.isdir(current_path):
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un dossier pour créer un nouvel élément.")
+            QMessageBox.warning(
+                self,
+                "Erreur",
+                "Veuillez sélectionner un dossier pour créer un nouvel élément.",
+            )
             return
 
         # Boîte de dialogue pour choisir le type d'élément à créer
-        item_type, ok = QInputDialog.getItem(self, "Créer un nouvel élément", "Type d'élément:", ["Dossier", "Fichier"],
-                                             0, False)
+        item_type, ok = QInputDialog.getItem(
+            self,
+            "Créer un nouvel élément",
+            "Type d'élément:",
+            ["Dossier", "Fichier"],
+            0,
+            False,
+        )
         if ok and item_type:
-            item_name, ok = QInputDialog.getText(self, f"Nouveau {item_type.lower()}",
-                                                 f"Nom du nouveau {item_type.lower()}:")
+            item_name, ok = QInputDialog.getText(
+                self,
+                f"Nouveau {item_type.lower()}",
+                f"Nom du nouveau {item_type.lower()}:",
+            )
             if ok and item_name:
                 item_path = os.path.join(current_path, item_name)
                 try:
@@ -237,15 +266,21 @@ class FileManager(QMainWindow, Ui_FileManager):
                         os.makedirs(item_path)
                         print(f"Nouveau dossier créé : {item_path}")
                     elif item_type == "Fichier":
-                        with open(item_path, 'w') as f:
-                            f.write('')
+                        with open(item_path, "w") as f:
+                            f.write("")
                         print(f"Nouveau fichier créé : {item_path}")
                 except Exception as e:
-                    QMessageBox.critical(self, "Erreur", f"Impossible de créer le {item_type.lower()} : {e}")
+                    QMessageBox.critical(
+                        self,
+                        "Erreur",
+                        f"Impossible de créer le {item_type.lower()} : {e}",
+                    )
 
     def copy_file(self):
         if not self.index_selected.isValid():
-            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un emplacement valide.")
+            QMessageBox.warning(
+                self, "Erreur", "Veuillez sélectionner un emplacement valide."
+            )
             return
 
         print("Fichier copié")
@@ -266,7 +301,9 @@ class FileManager(QMainWindow, Ui_FileManager):
         if not self.index_selected.isValid():
             return
         old_name = self.fileSystemModel.fileName(self.index_selected)
-        new_name, ok = QInputDialog.getText(self, "Renommer", "Nouveau nom:", text=old_name)
+        new_name, ok = QInputDialog.getText(
+            self, "Renommer", "Nouveau nom:", text=old_name
+        )
         if ok and new_name:
             old_path = self.fileSystemModel.filePath(self.index_selected)
             new_path = os.path.join(os.path.dirname(old_path), new_name)
@@ -274,19 +311,24 @@ class FileManager(QMainWindow, Ui_FileManager):
             self.lbl_chemin.setText(new_path)
 
     def delete_file(self):
-
         if not self.index_selected.isValid():
             return
         file_path = self.fileSystemModel.filePath(self.index_selected)
-        reply = QMessageBox.question(self, "Supprimer", f"Voulez-vous vraiment supprimer {file_path} ?",
-                                     QMessageBox.Yes | QMessageBox.No)
+        reply = QMessageBox.question(
+            self,
+            "Supprimer",
+            f"Voulez-vous vraiment supprimer {file_path} ?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             try:
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
                     print(f"Dossier supprimé : {file_path}")
                 else:
-                    os.chmod(file_path, 0o777)  # Assurez-vous que le fichier n'est pas en lecture seule
+                    os.chmod(
+                        file_path, 0o777
+                    )  # Assurez-vous que le fichier n'est pas en lecture seule
                     os.unlink(file_path)
                     # Utilisez subprocess pour supprimer un fichier avec des privilèges élevés sous Windows
                     # command = f'del /F /Q "{file_path}"'
@@ -301,7 +343,7 @@ class FileManager(QMainWindow, Ui_FileManager):
 
                     print(f"Fichier supprimé : {file_path}")
 
-            except PermissionError as perm:
+            except PermissionError:
                 self.show_admin_dialog(file_path)
 
                 print(f"Permission refusée : {file_path}")
@@ -314,12 +356,18 @@ class FileManager(QMainWindow, Ui_FileManager):
             return
         file_path = self.fileSystemModel.filePath(index)
         if os.path.isdir(file_path):
-            subprocess.Popen([r'C:\Windows\System32\cmd.exe'], cwd=file_path,
-                             creationflags=subprocess.CREATE_NEW_CONSOLE)
+            subprocess.Popen(
+                [r"C:\Windows\System32\cmd.exe"],
+                cwd=file_path,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
         else:
             dir_path = os.path.dirname(file_path)
-            subprocess.Popen([r'C:\Windows\System32\cmd.exe'], cwd=dir_path,
-                             creationflags=subprocess.CREATE_NEW_CONSOLE)
+            subprocess.Popen(
+                [r"C:\Windows\System32\cmd.exe"],
+                cwd=dir_path,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
 
     def on_listView_clicked(self, index):
         file_info = self.fileSystemModel.fileInfo(index)
@@ -335,7 +383,9 @@ class FileManager(QMainWindow, Ui_FileManager):
     def show_admin_dialog(self, file):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
-        msg.setText("Vous devez disposer des droits d'administrateur pour supprimer cet élément.")
+        msg.setText(
+            "Vous devez disposer des droits d'administrateur pour supprimer cet élément."
+        )
         msg.setWindowTitle("Accès refusé")
         msg.setStandardButtons(QMessageBox.Ignore | QMessageBox.Cancel | QMessageBox.Ok)
 
@@ -360,12 +410,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         #                                     " ".join([sys.executable] + sys.argv + ["--admin"]), None, 1)
         # QMessageBox.information(self, "Admin Rights Required", "Restarting as admin.")
         params = " ".join(['"' + arg + '"' for arg in sys.argv] + ["--admin"])
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, params, None, 1
+        )
         sys.exit()  # Fermez l'application après avoir demandé des droits admin
 
     def infos(self, index):
-
-        model = self.fileSystemModel
+        # model = self.fileSystemModel
         # parent_index = model.parent(index)
 
         file_path = self.fileSystemModel.filePath(index)
@@ -389,12 +440,15 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.lbl_chemin.setText(f"Chemin: {file_path}")
 
         locale = QLocale(QLocale.French, QLocale.France)
-        last_modified_date = locale.toString(file_info.lastModified(), "dddd dd MMMM yyyy à hh:mm:ss")
+        last_modified_date = locale.toString(
+            file_info.lastModified(), "dddd dd MMMM yyyy à hh:mm:ss"
+        )
         self.lbl_date.setText(f"Date de modification: {last_modified_date}")
-        self.lbl_type.setText(f"Type: {file_info.suffix() if file_info.isFile() else 'Dossier'}")
+        self.lbl_type.setText(
+            f"Type: {file_info.suffix() if file_info.isFile() else 'Dossier'}"
+        )
 
         if file_info.isFile():
-
             self.panel_preview.setFixedWidth(self.panel_preview.width())
             self.panel_preview.setFixedHeight(500)
             self.mime_type, _ = mimetypes.guess_type(url=file_path)
@@ -402,7 +456,9 @@ class FileManager(QMainWindow, Ui_FileManager):
             total_size, free_space = self.get_disk_usage(os.path.abspath(os.sep))
             percentage = (file_size / total_size) * 100 if total_size > 0 else 0
             file_size = FileUtils.get_size(file_size)
-            self.lbl_taille.setText(f"Taille du fichier : {file_size} ({percentage:.2f}%)")
+            self.lbl_taille.setText(
+                f"Taille du fichier : {file_size} ({percentage:.2f}%)"
+            )
             self.lbl_preview.setText("")
             self.handle_file_type(file_path)
 
@@ -411,13 +467,17 @@ class FileManager(QMainWindow, Ui_FileManager):
             if os.path.ismount(file_path):
                 total_size, free_space = self.get_disk_usage(file_path)
                 directory_size = total_size - free_space
-                percentage = (directory_size / total_size) * 100 if total_size > 0 else 0
+                percentage = (
+                    (directory_size / total_size) * 100 if total_size > 0 else 0
+                )
                 self.draw_pie_chart(total_size, free_space)
                 total_size = FileUtils.get_size(total_size)
                 free_space = FileUtils.get_size(free_space)
-                self.lbl_taille.setText(f"Taille totale / dispo : {total_size} / {free_space} ({percentage:.2f}%)")
+                self.lbl_taille.setText(
+                    f"Taille totale / dispo : {total_size} / {free_space} ({percentage:.2f}%)"
+                )
             else:
-                self.lbl_taille.setText(f"Taille du dossier : calcul en cours ...")
+                self.lbl_taille.setText("Taille du dossier : calcul en cours ...")
                 self.calculate_directory_size(file_path)
 
     def calculate_directory_size(self, path):
@@ -433,40 +493,52 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.draw_pie_chart(root_size, directory_size)
         directory_size = FileUtils.get_size(directory_size)
         if size > 0:
-            self.lbl_taille.setText(f"Taille du dossier : {directory_size} ({percentage:.2f}%)")
+            self.lbl_taille.setText(
+                f"Taille du dossier : {directory_size} ({percentage:.2f}%)"
+            )
         else:
-            self.lbl_taille.setText(f"Taille du dossier : vide")
+            self.lbl_taille.setText("Taille du dossier : vide")
 
     def handle_file_type(self, file_path):
         self.mime_type = FileUtils.analyze_extension(file_path)
         if self.mime_type:
-            if self.mime_type.startswith('text'):
+            if self.mime_type.startswith("text"):
                 self.lbl_preview.setVisible(True)
                 FileUtils.display_text_file(self.lbl_preview, file_path)
-            elif self.mime_type.startswith('image'):
+            elif self.mime_type.startswith("image"):
                 self.lbl_preview.setVisible(True)
-                FileUtils.display_image_file(self.panel_listview, self.lbl_preview, file_path)
-            elif self.mime_type.__contains__('pdf') or self.mime_type.__contains__('html'):
+                FileUtils.display_image_file(
+                    self.panel_listview, self.lbl_preview, file_path
+                )
+            elif self.mime_type.__contains__("pdf") or self.mime_type.__contains__(
+                "html"
+            ):
                 if file_path:
                     self.web_view.setUrl(QUrl.fromLocalFile(file_path))
                     self.lbl_preview.setVisible(False)
                     self.web_view.setVisible(True)
-                    self.web_view.setGeometry(0, 0, self.panel_preview.width(), self.panel_preview.height())
+                    self.web_view.setGeometry(
+                        0, 0, self.panel_preview.width(), self.panel_preview.height()
+                    )
                 # self.lbl_preview.clear()
                 # FileUtils.display_pdf_file(self.lbl_preview, file_path)
-            elif self.mime_type.__contains__('word') or self.mime_type.__contains__('excel'):
+            elif self.mime_type.__contains__("word") or self.mime_type.__contains__(
+                "excel"
+            ):
                 self.display_office_file(file_path, self.mime_type)
                 self.lbl_preview.setVisible(False)
                 self.web_view.setVisible(True)
-                self.web_view.setGeometry(0, 0, self.panel_preview.width(), self.panel_preview.height())
+                self.web_view.setGeometry(
+                    0, 0, self.panel_preview.width(), self.panel_preview.height()
+                )
 
     def display_office_file(self, file_path, mime_type):
-        if mime_type.__contains__('word'):
+        if mime_type.__contains__("word"):
             # Convert Word to HTML
             pdf_file = OfficeUtils.convert_word_to_pdf(file_path)
             if pdf_file:
                 self.web_view.setUrl(QUrl.fromLocalFile(pdf_file))
-        elif mime_type.__contains__('excel'):
+        elif mime_type.__contains__("excel"):
             # Convert Excel to HTML
             pdf_file = OfficeUtils.convert_excel_to_pdf(file_path)
             if pdf_file:
@@ -482,14 +554,22 @@ class FileManager(QMainWindow, Ui_FileManager):
     def draw_pie_chart(self, total_size, free_space):
         used_space = total_size - free_space
         sizes = [used_space, free_space]
-        labels = ['Espace utilisé', 'Espace libre']
-        colors = ['#ff9999', '#66b3ff']
+        labels = ["Espace utilisé", "Espace libre"]
+        colors = ["#ff9999", "#66b3ff"]
 
         self.canvas.figure.clear()
         ax = self.canvas.figure.add_subplot(111)
-        ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=70, shadow=True, radius=0.8,
-               wedgeprops=dict(width=0.5, edgecolor='black'))
-        ax.axis('equal')
+        ax.pie(
+            sizes,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            startangle=70,
+            shadow=True,
+            radius=0.8,
+            wedgeprops=dict(width=0.5, edgecolor="black"),
+        )
+        ax.axis("equal")
         self.canvas.draw()
         self.canvas.setVisible(True)
 
@@ -499,29 +579,36 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.infos(index)
 
     def open_context_menu(self, position):
+        # sender = self.sender()
 
-        sender = self.sender()
-
-        if isinstance(sender, QTreeView):
-            indexes = self.treeView.selectedIndexes()
-        elif isinstance(sender, QListView):
-            indexes = self.listView.selectedIndexes()
-        else:
-            return
+        # if isinstance(sender, QTreeView):
+        #     indexes = self.treeView.selectedIndexes()
+        # elif isinstance(sender, QListView):
+        #     indexes = self.listView.selectedIndexes()
+        # else:
+        #     return
 
         menu = QMenu()
-        new_folder = QAction(QIcon(f"{PATH_ROOT}/toolbar/add-folder.png"), "Nouvel élément", self)
+        new_folder = QAction(
+            QIcon(f"{PATH_ROOT}/toolbar/add-folder.png"), "Nouvel élément", self
+        )
         new_folder.setShortcut("Ctrl+N")
         cut_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/cut.png"), "Couper", self)
         cut_action.setShortcut("Ctrl+X")
         copy_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/copy.png"), "Copier", self)
         copy_action.setShortcut("Ctrl+C")
 
-        rename_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/rename.png"), "Renommer", self)
+        rename_action = QAction(
+            QIcon(f"{PATH_ROOT}/toolbar/rename.png"), "Renommer", self
+        )
         copy_action.setShortcut("F2")
 
-        delete_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/remove-folder.png"), "Supprimer", self)
-        command_action = QAction(QIcon(f"{PATH_ROOT}/toolbar/running.png"), "Exécuter commande", self)
+        delete_action = QAction(
+            QIcon(f"{PATH_ROOT}/toolbar/remove-folder.png"), "Supprimer", self
+        )
+        command_action = QAction(
+            QIcon(f"{PATH_ROOT}/toolbar/running.png"), "Exécuter commande", self
+        )
         new_folder.triggered.connect(self.new_file)
         cut_action.triggered.connect(self.cut_file)
         copy_action.triggered.connect(self.copy_file)
@@ -548,13 +635,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.move(self_geometry.topLeft())
 
     def convert_word_to_html(self, docx_path):
-        html_path = docx_path.replace('.docx', '.html').replace('.DOCX', '.html')
-        pypandoc.convert_file(docx_path, 'html', outputfile=html_path)
+        html_path = docx_path.replace(".docx", ".html").replace(".DOCX", ".html")
+        pypandoc.convert_file(docx_path, "html", outputfile=html_path)
         return html_path
 
     def convert_excel_to_html(self, xlsx_path):
-        html_path = xlsx_path.replace('.xlsx', '.html').replace('.XLSX', '.html')
-        excel = CreateObject('Excel.Application')
+        html_path = xlsx_path.replace(".xlsx", ".html").replace(".XLSX", ".html")
+        excel = CreateObject("Excel.Application")
         wb = excel.Workbooks.Open(xlsx_path)
         wb.SaveAs(html_path, FileFormat=44)  # 44 corresponds to xlHtml
         wb.Close()

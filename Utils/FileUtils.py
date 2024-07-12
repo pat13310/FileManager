@@ -1,16 +1,12 @@
-import io
 import json
 import mimetypes
-import os
 from enum import Enum
 
+import chardet
+import fitz
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWidgets import QLabel
-import chardet
-import fitz
-from pypdf import PdfReader
-from PIL import Image
 
 
 class FileFormat(Enum):
@@ -22,16 +18,15 @@ class FileFormat(Enum):
 
 
 class FileUtils:
-
     @staticmethod
-    def analyze_extension(file_path: str, json_path='mime_types.json'):
+    def analyze_extension(file_path: str, json_path="mime_types.json"):
         mime_type = None
-        parts = file_path.split('.')
+        parts = file_path.split(".")
 
         if len(parts) >= 2:
             ext = parts[-1].lower()  # Assurez-vous que l'extension est en minuscule
             try:
-                with open(json_path, 'r') as file:
+                with open(json_path, "r") as file:
                     mime_types = json.load(file)
                 mime_type = mime_types.get(ext)
             except FileNotFoundError:
@@ -43,8 +38,8 @@ class FileUtils:
         return mime_type
 
     @staticmethod
-    def display_text_file(label: QLabel, file_path, encoding='utf-8'):
-        with open(file_path, 'r', encoding=encoding) as file:
+    def display_text_file(label: QLabel, file_path, encoding="utf-8"):
+        with open(file_path, "r", encoding=encoding) as file:
             content = file.read()
         label.clear()
         label.setStyleSheet("color: black")
@@ -70,7 +65,9 @@ class FileUtils:
         doc = fitz.open(file_path)
         page = doc.load_page(0)
         pix = page.get_pixmap()
-        img = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
+        img = QImage(
+            pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888
+        )
         pixmap = QPixmap.fromImage(img)
         label.setPixmap(pixmap)
         # label.setPixmap(pixmap.scaled(label.size(), Qt.KeepAspectRatio))
@@ -84,10 +81,9 @@ class FileUtils:
     #     FileUtils.display_pdf_file(label, pdf_file)
     #     os.remove(pdf_file)
 
-
     @staticmethod
     def get_size(size, decimal_places=2) -> str:
-        for unit in ['Octets', 'Ko', 'Mo', 'Go', 'To', 'Po']:
+        for unit in ["Octets", "Ko", "Mo", "Go", "To", "Po"]:
             if size < 1024.0:
                 return f"{size:.{decimal_places}f} {unit}"
             size /= 1024.0
@@ -95,16 +91,16 @@ class FileUtils:
 
     @staticmethod
     def detect_file_encoding(file_path):
-        with open(file_path, 'rb') as file:
+        with open(file_path, "rb") as file:
             raw_data = file.read()
             result = chardet.detect(raw_data)
-            encoding: str | None | float = result['encoding']
-            confidence = result['confidence']
+            encoding: str | None | float = result["encoding"]
+            confidence = result["confidence"]
         print(f"Detected encoding: {encoding} with confidence {confidence}")
         return encoding.lower()
 
 
-if __name__ == '__main__':
-    file_path = '../requirements.txt'
+if __name__ == "__main__":
+    file_path = "../requirements.txt"
     encoding = FileUtils.detect_file_encoding(file_path)
     pass

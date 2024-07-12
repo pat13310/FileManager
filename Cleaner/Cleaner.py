@@ -1,8 +1,10 @@
+import json
 import os
 import shutil
-import json
 from pathlib import Path
-from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool
+
+from PySide6.QtCore import QRunnable, Signal, QObject
+
 from Plugin import PluginManager
 
 
@@ -28,10 +30,12 @@ class Cleaner(QRunnable):
 
     def load_config(self, file_path):
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, "r", encoding="utf-8") as file:
                 return json.load(file)
         except FileNotFoundError:
-            self.signals.error.emit(f"Le fichier de configuration '{file_path}' n'a pas été trouvé.")
+            self.signals.error.emit(
+                f"Le fichier de configuration '{file_path}' n'a pas été trouvé."
+            )
             return None
         except json.JSONDecodeError as e:
             self.signals.error.emit(f"Erreur de décodage JSON : {e}")
@@ -39,11 +43,15 @@ class Cleaner(QRunnable):
 
     def prepare_paths_to_clean(self):
         paths_to_clean = []
-        for category, category_details in self.config['Configurations'].items():
+        for category, category_details in self.config["Configurations"].items():
             # Pas de vérification pour 'enabled' au niveau de la catégorie
-            for path_name, path_info in category_details['options'].items():
-                if path_info.get('enabled', False):  # Vérifie si chaque chemin est activé
-                    path_obj = Path(path_info['path'].replace("<Username>", os.getenv("USERNAME")))
+            for path_name, path_info in category_details["options"].items():
+                if path_info.get(
+                    "enabled", False
+                ):  # Vérifie si chaque chemin est activé
+                    path_obj = Path(
+                        path_info["path"].replace("<Username>", os.getenv("USERNAME"))
+                    )
                     if path_obj.exists():
                         paths_to_clean.append(path_obj)
         return paths_to_clean
@@ -67,9 +75,9 @@ class Cleaner(QRunnable):
             self._is_running = False
 
     def clean_directory(self, directory):
-        total_files = sum(1 for _ in directory.rglob('*') if _.is_file())
+        total_files = sum(1 for _ in directory.rglob("*") if _.is_file())
         processed_files = 0
-        for item in directory.rglob('*'):
+        for item in directory.rglob("*"):
             if self.cancel_requested:
                 self._is_running = False
                 break
