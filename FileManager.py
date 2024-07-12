@@ -7,8 +7,10 @@ import sys
 
 from PySide6.QtCore import QCoreApplication, Qt, QLocale, QTranslator, QSize, QThreadPool
 from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileSystemModel, QDialog, QMenu, QMessageBox, QInputDialog, \
     QWidget, QTreeView, QListView
+from comtypes.client import CreateObject
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
@@ -16,7 +18,13 @@ from Cleaner.CleanDialog import CleanDialog
 from SettingsDialog import SettingsDialog
 from Utils.DirectorySizeWorker import DirectorySizeWorker
 from Utils.FileUtils import FileUtils
+from Utils.OfficeUtils import OfficeUtils
 from ui.ui_FileManager import Ui_FileManager
+
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtCore import QUrl
+
+import pypandoc
 
 PATH_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -31,7 +39,6 @@ class FileManager(QMainWindow, Ui_FileManager):
         else:
             self.setWindowTitle("Gestionnaire FileManager")
 
-        print(sys.argv)
         self.worker = None
         self.mime_type = None
         self.nav_index = 0
@@ -85,13 +92,14 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.center_on_screen()
         self.index_selected = None
 
-        # self.lbl_preview.setWordWrap(True)
         self.scrollArea.setFixedHeight(400)
-        # self.scrollAreaContents.setFixedHeight(self.scrollArea.height())
-        # self.scrollAreaContents.setMaximumWidth(self.panel_preview.width())
-        # self.lbl_preview.setMinimumWidth(self.panel_preview.width())
-        # self.lbl_preview.setMaximumWidth(self.panel_preview.width())
-        # self.scrollArea.setWidgetResizable(True)
+        self.web_view = QWebEngineView(self.panel_preview)
+        settings = self.web_view.settings()
+        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        settings.setAttribute(QWebEngineSettings.PdfViewerEnabled, True)
+        self.web_view.setVisible(False)
+
+        OfficeUtils.check_word_installation()
 
     def init_toolbar(self):
         self.toolBar.setIconSize(QSize(15, 15))
@@ -328,15 +336,17 @@ class FileManager(QMainWindow, Ui_FileManager):
 
         model = self.fileSystemModel
         parent_index = model.parent(index)
-        self.canvas.figure.clear()
+
         file_path = self.fileSystemModel.filePath(index)
         file_info = self.fileSystemModel.fileInfo(index)
 
         self.textBrowser.setText(file_path)
         self.history_nav.insert(self.nav_index, file_path)
-
+        self.canvas.figure.clear()
+        self.canvas.setVisible(False)
         self.scrollArea.setVisible(True if file_info.isFile() else False)
-        # self.wProperties.setVisible(True if file_info.isDir() else False)
+        self.web_view.setVisible(False)
+        self.lbl_preview.setVisible(False)
 
         file_name = file_info.fileName()
         if file_name == "" and not file_info.isFile():
@@ -350,12 +360,10 @@ class FileManager(QMainWindow, Ui_FileManager):
         locale = QLocale(QLocale.French, QLocale.France)
         last_modified_date = locale.toString(file_info.lastModified(), "dddd dd MMMM yyyy à hh:mm:ss")
         self.lbl_date.setText(f"Date de modification: {last_modified_date}")
-
         self.lbl_type.setText(f"Type: {file_info.suffix() if file_info.isFile() else 'Dossier'}")
 
         if file_info.isFile():
 
-            self.canvas.setVisible(False)
             self.panel_preview.setFixedWidth(self.panel_preview.width())
             self.panel_preview.setFixedHeight(500)
             self.mime_type, _ = mimetypes.guess_type(url=file_path)
@@ -365,10 +373,9 @@ class FileManager(QMainWindow, Ui_FileManager):
             file_size = FileUtils.get_size(file_size)
             self.lbl_taille.setText(f"Taille du fichier : {file_size} ({percentage:.2f}%)")
             self.lbl_preview.setText("")
+            self.handle_file_type(file_path)
 
-            self.handle_file_type(self.mime_type, file_path)
-
-        if file_info.isDir():
+        elif file_info.isDir():
             if os.path.ismount(file_path):
                 total_size, free_space = self.get_disk_usage(file_path)
                 directory_size = total_size - free_space
@@ -398,17 +405,40 @@ class FileManager(QMainWindow, Ui_FileManager):
         else:
             self.lbl_taille.setText(f"Taille du dossier : vide")
 
-    def handle_file_type(self, mime_type, file_path):
+    def handle_file_type(self, file_path):
         self.mime_type = FileUtils.analyze_extension(file_path)
-
         if self.mime_type:
             if self.mime_type.startswith('text'):
+                self.lbl_preview.setVisible(True)
                 FileUtils.display_text_file(self.lbl_preview, file_path)
             elif self.mime_type.startswith('image'):
+                self.lbl_preview.setVisible(True)
                 FileUtils.display_image_file(self.panel_listview, self.lbl_preview, file_path)
-            elif self.mime_type.__contains__('pdf'):
-                self.lbl_preview.clear()
-                FileUtils.display_pdf_file(self.lbl_preview, file_path)
+            elif self.mime_type.__contains__('pdf') or self.mime_type.__contains__('html'):
+                if file_path:
+                    self.web_view.setUrl(QUrl.fromLocalFile(file_path))
+                    self.lbl_preview.setVisible(False)
+                    self.web_view.setVisible(True)
+                    self.web_view.setGeometry(0, 0, self.panel_preview.width(), self.panel_preview.height())
+                # self.lbl_preview.clear()
+                # FileUtils.display_pdf_file(self.lbl_preview, file_path)
+            elif self.mime_type.__contains__('word') or self.mime_type.__contains__('excel'):
+                self.display_office_file(file_path, self.mime_type)
+                self.lbl_preview.setVisible(False)
+                self.web_view.setVisible(True)
+                self.web_view.setGeometry(0, 0, self.panel_preview.width(), self.panel_preview.height())
+
+    def display_office_file(self, file_path, mime_type):
+        if mime_type.__contains__('word'):
+            # Convert Word to HTML
+            pdf_file = OfficeUtils.convert_word_to_pdf(file_path)
+            if pdf_file:
+                self.web_view.setUrl(QUrl.fromLocalFile(pdf_file))
+        elif mime_type.__contains__('excel'):
+            # Convert Excel to HTML
+            pdf_file = OfficeUtils.convert_excel_to_pdf(file_path)
+            if pdf_file:
+                self.web_view.setUrl(QUrl.fromLocalFile(pdf_file))
 
     def worker_finished(self):
         print("Travail fini")
@@ -484,6 +514,20 @@ class FileManager(QMainWindow, Ui_FileManager):
         self_geometry = self.frameGeometry()
         self_geometry.moveCenter(screen_geometry.center())
         self.move(self_geometry.topLeft())
+
+    def convert_word_to_html(self, docx_path):
+        html_path = docx_path.replace('.docx', '.html').replace('.DOCX', '.html')
+        pypandoc.convert_file(docx_path, 'html', outputfile=html_path)
+        return html_path
+
+    def convert_excel_to_html(self, xlsx_path):
+        html_path = xlsx_path.replace('.xlsx', '.html').replace('.XLSX', '.html')
+        excel = CreateObject('Excel.Application')
+        wb = excel.Workbooks.Open(xlsx_path)
+        wb.SaveAs(html_path, FileFormat=44)  # 44 corresponds to xlHtml
+        wb.Close()
+        excel.Quit()
+        return html_path
 
 
 if __name__ == "__main__":

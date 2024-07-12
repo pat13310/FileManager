@@ -1,21 +1,30 @@
 import io
 import json
 import mimetypes
+import os
+from enum import Enum
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QImage, QPainter
-from PySide6.QtWidgets import QLabel, QWidget
+from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtWidgets import QLabel
 import chardet
-# from pdf2image import convert_from_path
 import fitz
 from pypdf import PdfReader
 from PIL import Image
 
 
+class FileFormat(Enum):
+    PDF = 17
+    DOCX = 16
+    HTML = 8
+    TEXT = 2
+    RTF = 6
+
+
 class FileUtils:
 
     @staticmethod
-    def analyze_extension(file_path, json_path='mime_types.json'):
+    def analyze_extension(file_path: str, json_path='mime_types.json'):
         mime_type = None
         parts = file_path.split('.')
 
@@ -64,22 +73,16 @@ class FileUtils:
         img = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(img)
         label.setPixmap(pixmap)
-        #label.setPixmap(pixmap.scaled(label.size(), Qt.KeepAspectRatio))
+        # label.setPixmap(pixmap.scaled(label.size(), Qt.KeepAspectRatio))
         doc.close()
-    @staticmethod
-    def diplay_pdf_arch(label: QLabel, file):
-        pdf_document = fitz.open(file)
-        # Extraire la première page en tant qu'image
-        page = pdf_document.load_page(0)  # Numérotation des pages commence à 0
-        pix = page.get_pixmap()
 
-        # Convertir le pixmap en image Qt
-        image = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(image)
-        label.setPixmap(pixmap)
-
-        # Centrez le pixmap dans le QLabel
-        label.setAlignment(Qt.AlignCenter)
+    # @staticmethod
+    # def diplay_word_file(label: QLabel, file):
+    #     file_base = file.split('.')[0]
+    #     pdf_file = file_base + '.pdf'
+    #     FileUtils.convert_docx_to_pdf(file, pdf_file)
+    #     FileUtils.display_pdf_file(label, pdf_file)
+    #     os.remove(pdf_file)
 
 
     @staticmethod
