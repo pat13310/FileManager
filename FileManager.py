@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     QTranslator,
     QSize,
     QThreadPool,
-    QModelIndex,
+    QModelIndex, QTimer, QDateTime,
 )
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QIcon, QAction, QCursor, QGuiApplication
@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QInputDialog,
-    QWidget,
+    QWidget, QLabel,
 )
 from comtypes.client import CreateObject
 from matplotlib import pyplot as plt
@@ -58,11 +58,12 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.nav_index = 0
         self.connect_actions()
         self.history_nav = []
+        self.locale = QLocale(QLocale.French, QLocale.France)
         # Set the application locale to French
         self.translator = QTranslator()
         if self.translator.load("qt_fr.qm"):
             QCoreApplication.installTranslator(self.translator)
-        QLocale.setDefault(QLocale(QLocale.French, QLocale.France))
+        QLocale.setDefault(self.locale)
         self.init_toolbar()
         # File System Model
         self.fileSystemModel = QFileSystemModel(self)
@@ -115,6 +116,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.web_view.setVisible(False)
 
         # OfficeUtils.check_word_installation()
+        self.init_statusbar()
 
     def init_canvas(self):
         self.canvas.resize(250, 250)
@@ -164,6 +166,7 @@ class FileManager(QMainWindow, Ui_FileManager):
         self.treeView.customContextMenuRequested.connect(self.open_context_menu)
         self.listView.customContextMenuRequested.connect(self.open_context_menu)
         self.nav_index = 0
+        OfficeUtils.check_word_installation()
 
     def home_dir(self):
         self.listView.setRootIndex(self.fileSystemModel.index(""))
@@ -220,7 +223,7 @@ class FileManager(QMainWindow, Ui_FileManager):
 
             self.infos(self.fileSystemModel.index(path))
 
-            print(self.nav_index)
+            # print(self.nav_index)
 
     def clean_dir(self):
         pass
@@ -372,11 +375,13 @@ class FileManager(QMainWindow, Ui_FileManager):
         file_info = self.fileSystemModel.fileInfo(index)
         if file_info.isDir():
             self.index_selected = index
+        self.thread_pool.clear()
         self.infos(index)
 
     def on_treeView_clicked(self, index):
         self.index_selected = index
         self.listView.setRootIndex(index)
+        self.thread_pool.clear()
         self.infos(index)
 
     def show_admin_dialog(self, file):
@@ -510,7 +515,7 @@ class FileManager(QMainWindow, Ui_FileManager):
                     self.panel_listview, self.lbl_preview, file_path
                 )
             elif self.mime_type.__contains__("pdf") or self.mime_type.__contains__(
-                "html"
+                    "html"
             ):
                 if file_path:
                     self.web_view.setUrl(QUrl.fromLocalFile(file_path))
@@ -522,7 +527,7 @@ class FileManager(QMainWindow, Ui_FileManager):
                 # self.lbl_preview.clear()
                 # FileUtils.display_pdf_file(self.lbl_preview, file_path)
             elif self.mime_type.__contains__("word") or self.mime_type.__contains__(
-                "excel"
+                    "excel"
             ):
                 self.display_office_file(file_path, self.mime_type)
                 self.lbl_preview.setVisible(False)
@@ -530,6 +535,10 @@ class FileManager(QMainWindow, Ui_FileManager):
                 self.web_view.setGeometry(
                     0, 0, self.panel_preview.width(), self.panel_preview.height()
                 )
+            elif self.mime_type.__contains__("psd"):
+                self.lbl_preview.setVisible(True)
+                self.web_view.setVisible(False)
+                FileUtils.display_psd(self.panel_listview, self.lbl_preview, file_path)
 
     def display_office_file(self, file_path, mime_type):
         if mime_type.__contains__("word"):
@@ -642,6 +651,32 @@ class FileManager(QMainWindow, Ui_FileManager):
         excel.Quit()
         return html_path
 
+    def init_statusbar(self):
+        self.leftLabel = QLabel('Statut: Prêt')
+        self.leftLabel.setContentsMargins(10, 0, 0, 0)  # Add left margin
+        self.statusbar.addPermanentWidget(self.leftLabel, 1)
+
+        # Center extra field
+        self.centerLabel = QLabel('...')
+        self.centerLabel.setAlignment(Qt.AlignCenter)
+        self.statusbar.addPermanentWidget(self.centerLabel, 2)
+
+        # Right date and time label
+        self.rightLabel = QLabel()
+        self.rightLabel.setAlignment(Qt.AlignRight)
+        self.statusbar.addPermanentWidget(self.rightLabel, 1)
+        self.update_time()
+
+        # Timer to update the date and time every second
+        timer = QTimer(self)
+        timer.timeout.connect(self.update_time)
+        timer.start(1000)
+
+    def update_time(self):
+        current_time = QDateTime.currentDateTime()
+        #locale = QLocale(QLocale.French, QLocale.France)
+        formatted_time = self.locale.toString(current_time, 'dddd d MMMM yyyy HH:mm:ss')
+        self.rightLabel.setText(formatted_time)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -1,0 +1,116 @@
+{
+  "default": {
+    "background": {
+      "color": "#FFFFFF"
+    },
+    "color": "#000000",
+    "keyword": {
+      "color": "#0000FF",
+      "font_weight": "bold"
+    },
+    "function": {
+      "color": "#795E26",
+      "font_weight": "bold"
+    },
+    "variable": {
+      "color": "#000000"
+    },
+    "comment": {
+      "color": "#008000",
+      "font_style": "italic"
+    },
+    "string": {
+      "color": "#A31515"
+    },
+    "number": {
+      "color": "#098658"
+    },
+    "operator": {
+      "color": "#B000BF",
+      "font_weight": "bold"
+    },
+    "class": {
+      "color": "#267F99",
+      "font_weight": "bold"
+    }
+  },
+  "dark": {
+    "background": {
+      "color": "#1E1E1E"
+    },
+    "color": "#D4D4D4",
+    "keyword": {
+      "color": "#C586CF",
+      "font_weight": "bold"
+    },
+    "function": {
+      "color": "#80CDFB",
+      "font_weight": "bold"
+    },
+    "variable": {
+      "color": "#9CDCFE"
+    },
+    "comment": {
+      "color": "#6A9955",
+      "font_style": "italic"
+    },
+    "string": {
+      "color": "#CE9178"
+    },
+    "number": {
+      "color": "#B5CEA8"
+    },
+    "operator": {
+      "color": "#D4D4D4"
+    },
+    "class": {
+      "color": "#4EC9B0",
+      "font_weight": "bold"
+    }
+  },
+  "light": {
+    "background": {
+      "color": "#FFFFFF"
+    },
+    "color": "#000000",
+    "keyword": {
+      "color": "#0005FF",
+      "font_weight": "bold"
+    },
+    "function": {
+      "color": "#80CDFB",
+      "font_weight": "bold"
+    },
+    "variable": {
+      "color": "#000000"
+    },
+    "comment": {
+      "color": "#008000",
+      "font_style": "italic",
+      "font_weight": "bold"
+    },
+    "string": {
+      "color": "#008000",
+      "font_weight": "normal"
+    },
+    "number": {
+      "color": "#098658"
+    },
+    "operator": {
+      "color": "#B000F0",
+      "font_weight": "bold"
+    },
+    "class": {
+      "color": "#367F99",
+      "font_weight": "bold"
+    },
+    "parentheses": {
+      "color": "#367F99",
+      "font_weight": "normal"
+    },
+    "colons": {
+      "color": "#B000F0",
+      "font_weight": "bold"
+    }
+  }
+}

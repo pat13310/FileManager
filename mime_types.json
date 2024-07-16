@@ -46,5 +46,6 @@
   "exe": "application/vnd.microsoft.portable-executable",
   "ui": "text/qt.ui",
   "ini": "text/windows.config",
-  "ino": "text/sketch.arduino"
+  "ino": "text/sketch.arduino",
+  "psd": "photoshop/psd"
 }

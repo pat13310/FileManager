@@ -7,6 +7,7 @@ import fitz
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWidgets import QLabel
+from psd_tools import PSDImage
 
 
 class FileFormat(Enum):
@@ -43,19 +44,18 @@ class FileUtils:
             content = file.read()
         label.clear()
         label.setStyleSheet("color: black")
+        label.setAlignment(
+            Qt.AlignmentFlag.AlignLeading | Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
         label.setText(content)
 
     @staticmethod
     def display_image_file(parent, label: QLabel, file_path: str):
         pixmap = QPixmap(file_path)
+        label.setScaledContents(False)
+        label.setAlignment(Qt.AlignCenter)
         if parent.width() <= pixmap.width() or parent.height() <= pixmap.height():
-            # pixmap = pixmap.scaled(pixmap.width() // 2, pixmap.height() // 2, Qt.KeepAspectRatio)
             pixmap = pixmap.scaled(label.width(), label.height(), Qt.KeepAspectRatio)
-            label.setScaledContents(True)
-            label.setAlignment(Qt.AlignCenter)
-        else:
-            label.setScaledContents(False)
-            label.setAlignment(Qt.AlignCenter)
 
         label.clear()
         label.setPixmap(pixmap)
@@ -98,6 +98,28 @@ class FileUtils:
             confidence = result["confidence"]
         print(f"Detected encoding: {encoding} with confidence {confidence}")
         return encoding.lower()
+
+    @staticmethod
+    def display_psd(parent, label:QLabel,file_name):
+        psd = PSDImage.open(file_name)
+
+        # Composite the PSD image
+        image = psd.composite()
+        image = image.convert("RGBA")  # Ensure the image is in RGBA format
+
+        # Convert to QImage
+        data = image.tobytes("raw", "RGBA")
+        q_image = QImage(data, image.width, image.height, QImage.Format_RGBA8888)
+        pixmap = QPixmap.fromImage(q_image)
+        label.setAlignment(Qt.AlignCenter)
+        if parent.width() <= pixmap.width() or parent.height() <= pixmap.height():
+            pixmap = pixmap.scaled(label.width(), label.height(), Qt.KeepAspectRatio)
+
+        label.clear()
+        label.setPixmap(pixmap)
+        # Display the QPixmap in QLabel
+        label.setPixmap(pixmap)
+        label.adjustSize()
 
 
 if __name__ == "__main__":

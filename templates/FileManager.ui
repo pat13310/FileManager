@@ -136,6 +136,18 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>320</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>420</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <property name="styleSheet">
         <string notr="true">background-color: white;</string>
        </property>
@@ -165,8 +177,14 @@
           </property>
           <property name="minimumSize">
            <size>
-            <width>420</width>
+            <width>0</width>
             <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>16777215</height>
            </size>
           </property>
           <property name="styleSheet">
@@ -193,6 +211,18 @@ color: black;</string>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>400</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>420</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
          <widget class="QSplitter" name="splitter_2">
@@ -214,7 +244,7 @@ color: black;</string>
            </property>
            <property name="maximumSize">
             <size>
-             <width>420</width>
+             <width>16777215</width>
              <height>16777215</height>
             </size>
            </property>
@@ -224,7 +254,7 @@ color: black;</string>
             </font>
            </property>
            <property name="mouseTracking">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="acceptDrops">
             <bool>true</bool>
@@ -272,6 +302,7 @@ color: black;</string>
              <widget class="QLabel" name="label">
               <property name="font">
                <font>
+                <pointsize>8</pointsize>
                 <bold>true</bold>
                </font>
               </property>
@@ -282,6 +313,11 @@ color: black;</string>
             </item>
             <item>
              <widget class="QLabel" name="lbl_nom">
+              <property name="font">
+               <font>
+                <pointsize>8</pointsize>
+               </font>
+              </property>
               <property name="styleSheet">
                <string notr="true">color: rgb(0, 0, 0);</string>
               </property>
@@ -304,6 +340,11 @@ color: black;</string>
                 <height>4</height>
                </size>
               </property>
+              <property name="font">
+               <font>
+                <pointsize>8</pointsize>
+               </font>
+              </property>
               <property name="styleSheet">
                <string notr="true">color: rgb(0, 0, 0);</string>
               </property>
@@ -314,6 +355,11 @@ color: black;</string>
             </item>
             <item>
              <widget class="QLabel" name="lbl_taille">
+              <property name="font">
+               <font>
+                <pointsize>8</pointsize>
+               </font>
+              </property>
               <property name="styleSheet">
                <string notr="true">color: rgb(0, 0, 0);</string>
               </property>
@@ -324,6 +370,11 @@ color: black;</string>
             </item>
             <item>
              <widget class="QLabel" name="lbl_date">
+              <property name="font">
+               <font>
+                <pointsize>8</pointsize>
+               </font>
+              </property>
               <property name="styleSheet">
                <string notr="true">color: rgb(0, 0, 0);</string>
               </property>
@@ -334,6 +385,11 @@ color: black;</string>
             </item>
             <item>
              <widget class="QLabel" name="lbl_type">
+              <property name="font">
+               <font>
+                <pointsize>8</pointsize>
+               </font>
+              </property>
               <property name="styleSheet">
                <string notr="true">color: rgb(0, 0, 0);</string>
               </property>
@@ -387,7 +443,7 @@ color: black;</string>
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>446</width>
+             <width>464</width>
              <height>553</height>
             </rect>
            </property>

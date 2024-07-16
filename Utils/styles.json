@@ -1,0 +1,13 @@
+{
+  "keyword": {
+    "color": "#2860C4",
+    "font_weight": "bold"
+  },
+  "comment": {
+    "color": "#006000",
+    "font_style": "italic"
+  },
+  "string": {
+    "color": "#008000"
+  }
+}
